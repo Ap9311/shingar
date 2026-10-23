@@ -1,0 +1,362 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // Global Hardened Primitives
+    // =========================================================================
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isVerifiedUser() && request.auth.uid == userId;
+    }
+
+    function isBootstrappedAdmin() {
+      return isVerifiedUser() && (
+        request.auth.token.email == "akshatpopat9311@gmail.com" ||
+        request.auth.token.email == "support.obsidian@gmail.com"
+      );
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() || (
+        isVerifiedUser() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // =========================================================================
+    // Entity Validation Blueprints (Anti-Update-Gap)
+    // =========================================================================
+
+    function isValidCollectionItem(data) {
+      return data.keys().hasAll([
+        'title', 'category', 'price', 'fabric', 'silhouette',
+        'occasion', 'description', 'imageUrl', 'featured',
+        'lookbookChapter', 'sku', 'authorUid', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'title', 'category', 'price', 'fabric', 'silhouette',
+        'occasion', 'description', 'imageUrl', 'featured',
+        'lookbookChapter', 'sku', 'availableBranches', 'authorUid', 'createdAt', 'updatedAt'
+      ]) &&
+      data.title is string && data.title.size() >= 2 && data.title.size() <= 120 &&
+      data.category is string && data.category.size() >= 2 && data.category.size() <= 80 &&
+      data.price is number && data.price >= 0 && data.price <= 10000000 &&
+      data.fabric is string && data.fabric.size() >= 1 && data.fabric.size() <= 150 &&
+      data.silhouette is string && data.silhouette.size() >= 1 && data.silhouette.size() <= 150 &&
+      data.occasion is string && data.occasion.size() >= 1 && data.occasion.size() <= 100 &&
+      data.description is string && data.description.size() >= 2 && data.description.size() <= 1000 &&
+      data.imageUrl is string && data.imageUrl.size() >= 1 && data.imageUrl.size() <= 900000 &&
+      data.featured is bool &&
+      data.lookbookChapter is string && data.lookbookChapter.size() >= 1 && data.lookbookChapter.size() <= 100 &&
+      data.sku is string && data.sku.size() >= 2 && data.sku.size() <= 40 && data.sku.matches('^[a-zA-Z0-9_\\-]+$') &&
+      (!('availableBranches' in data) || (data.availableBranches is string && data.availableBranches.size() >= 1 && data.availableBranches.size() <= 250)) &&
+      data.authorUid is string && data.authorUid.size() >= 1 && data.authorUid.size() <= 128 &&
+      data.authorUid == request.auth.uid &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidClothingCategory(data) {
+      return data.keys().hasAll([
+        'name', 'description', 'order', 'authorUid', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'name', 'description', 'order', 'authorUid', 'createdAt', 'updatedAt'
+      ]) &&
+      data.name is string && data.name.size() >= 2 && data.name.size() <= 80 &&
+      data.description is string && data.description.size() >= 0 && data.description.size() <= 300 &&
+      data.order is number && data.order >= 0 && data.order <= 10000 &&
+      data.authorUid is string && data.authorUid.size() >= 1 && data.authorUid.size() <= 128 &&
+      data.authorUid == request.auth.uid &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidOfferPoster(data) {
+      return data.keys().hasAll([
+        'title', 'subtitle', 'privilegeBadge', 'validUntil',
+        'description', 'posterUrl', 'privilegeCode', 'active',
+        'authorUid', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'title', 'subtitle', 'privilegeBadge', 'validUntil',
+        'description', 'posterUrl', 'privilegeCode', 'active',
+        'authorUid', 'createdAt', 'updatedAt'
+      ]) &&
+      data.title is string && data.title.size() >= 2 && data.title.size() <= 120 &&
+      data.subtitle is string && data.subtitle.size() >= 2 && data.subtitle.size() <= 160 &&
+      data.privilegeBadge is string && data.privilegeBadge.size() >= 2 && data.privilegeBadge.size() <= 100 &&
+      data.validUntil is string && data.validUntil.size() >= 2 && data.validUntil.size() <= 80 &&
+      data.description is string && data.description.size() >= 2 && data.description.size() <= 800 &&
+      data.posterUrl is string && data.posterUrl.size() >= 1 && data.posterUrl.size() <= 900000 &&
+      data.privilegeCode is string && data.privilegeCode.size() >= 2 && data.privilegeCode.size() <= 40 && data.privilegeCode.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.active is bool &&
+      data.authorUid is string && data.authorUid.size() >= 1 && data.authorUid.size() <= 128 &&
+      data.authorUid == request.auth.uid &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidUserDirectoryRecord(data) {
+      return data.keys().hasAll([
+        'uid', 'displayName', 'email', 'photoURL', 'createdAt', 'lastLoginAt'
+      ]) &&
+      data.keys().hasOnly([
+        'uid', 'displayName', 'email', 'photoURL', 'createdAt', 'lastLoginAt'
+      ]) &&
+      data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.uid == request.auth.uid &&
+      data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120 &&
+      data.email is string && data.email.size() >= 3 && data.email.size() <= 180 &&
+      data.email == request.auth.token.email &&
+      data.photoURL is string && data.photoURL.size() <= 500 &&
+      data.createdAt is timestamp &&
+      data.lastLoginAt is timestamp;
+    }
+
+    function isValidAtelierInquiry(data) {
+      return data.keys().hasAll([
+        'name', 'email', 'phone', 'preferredDate',
+        'dressReference', 'message', 'authorUid', 'createdAt'
+      ]) &&
+      data.keys().hasOnly([
+        'name', 'email', 'phone', 'preferredDate',
+        'dressReference', 'message', 'authorUid', 'createdAt'
+      ]) &&
+      data.name is string && data.name.size() >= 2 && data.name.size() <= 100 &&
+      data.email is string && data.email.size() >= 3 && data.email.size() <= 180 &&
+      data.phone is string && data.phone.size() >= 5 && data.phone.size() <= 30 &&
+      data.preferredDate is string && data.preferredDate.size() >= 2 && data.preferredDate.size() <= 80 &&
+      data.dressReference is string && data.dressReference.size() >= 1 && data.dressReference.size() <= 150 &&
+      data.message is string && data.message.size() >= 2 && data.message.size() <= 1000 &&
+      data.authorUid is string && data.authorUid.size() >= 1 && data.authorUid.size() <= 128 &&
+      data.authorUid == request.auth.uid &&
+      data.createdAt is timestamp;
+    }
+
+    function isValidAdminRoleRecord(data) {
+      return data.keys().hasAll([
+        'uid', 'email', 'username', 'grantedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'uid', 'email', 'username', 'grantedAt'
+      ]) &&
+      data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.uid == request.auth.uid &&
+      data.email is string && data.email.size() >= 3 && data.email.size() <= 180 &&
+      data.email == request.auth.token.email &&
+      data.username is string && data.username.size() >= 2 && data.username.size() <= 60 &&
+      data.grantedAt is timestamp;
+    }
+
+    // =========================================================================
+    // Collection Rules
+    // =========================================================================
+
+    // 1. Clothing Catalog (/collections/{itemId})
+    match /collections/{itemId} {
+      allow get: if isValidId(itemId);
+      allow list: if request.query.limit == null || request.query.limit <= 500;
+
+      allow create: if isVerifiedUser() &&
+        isValidId(itemId) &&
+        isValidCollectionItem(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        isAdmin();
+
+      allow update: if isVerifiedUser() &&
+        isValidId(itemId) &&
+        isValidCollectionItem(incoming()) &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'title', 'category', 'price', 'fabric', 'silhouette',
+            'occasion', 'description', 'imageUrl', 'featured',
+            'lookbookChapter', 'sku', 'availableBranches', 'authorUid', 'updatedAt'
+          ]) || isAdmin()
+        ) &&
+        isAdmin();
+
+      allow delete: if isVerifiedUser() &&
+        isValidId(itemId) &&
+        isAdmin();
+    }
+
+    // 2. Clothing Categories (/categories/{categoryId})
+    match /categories/{categoryId} {
+      allow get: if isValidId(categoryId);
+      allow list: if request.query.limit == null || request.query.limit <= 500;
+
+      allow create: if isVerifiedUser() &&
+        isValidId(categoryId) &&
+        isValidClothingCategory(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        isAdmin();
+
+      allow update: if isVerifiedUser() &&
+        isValidId(categoryId) &&
+        isValidClothingCategory(incoming()) &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'name', 'description', 'order', 'authorUid', 'updatedAt'
+          ]) || isAdmin()
+        ) &&
+        isAdmin();
+
+      allow delete: if isVerifiedUser() &&
+        isValidId(categoryId) &&
+        isAdmin();
+    }
+
+    // 3. Promotional Offers (/offers/{offerId})
+    match /offers/{offerId} {
+      allow get: if isValidId(offerId);
+      allow list: if request.query.limit == null || request.query.limit <= 500;
+
+      allow create: if isVerifiedUser() &&
+        isValidId(offerId) &&
+        isValidOfferPoster(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        isAdmin();
+
+      allow update: if isVerifiedUser() &&
+        isValidId(offerId) &&
+        isValidOfferPoster(incoming()) &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'title', 'subtitle', 'privilegeBadge', 'validUntil',
+            'description', 'posterUrl', 'privilegeCode', 'active', 'authorUid', 'updatedAt'
+          ]) || isAdmin()
+        ) &&
+        isAdmin();
+
+      allow delete: if isVerifiedUser() &&
+        isValidId(offerId) &&
+        isAdmin();
+    }
+
+    // 4. Customer User Directory (/users/{userId}) - Strictly PII Isolated
+    match /users/{userId} {
+      allow get: if isVerifiedUser() &&
+        isValidId(userId) &&
+        (isOwner(userId) || isAdmin());
+
+      allow list: if isVerifiedUser() &&
+        (resource.data.uid == request.auth.uid || isAdmin());
+
+      allow create: if isVerifiedUser() &&
+        isValidId(userId) &&
+        isOwner(userId) &&
+        isValidUserDirectoryRecord(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().lastLoginAt == request.time;
+
+      allow update: if isVerifiedUser() &&
+        isValidId(userId) &&
+        isValidUserDirectoryRecord(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().lastLoginAt == request.time &&
+        (
+          (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly([
+            'displayName', 'email', 'photoURL', 'lastLoginAt'
+          ])) ||
+          isAdmin()
+        );
+
+      allow delete: if isVerifiedUser() &&
+        isValidId(userId) &&
+        isAdmin();
+    }
+
+    // 5. Store Inquiries (/inquiries/{inquiryId})
+    match /inquiries/{inquiryId} {
+      allow get: if isVerifiedUser() &&
+        isValidId(inquiryId) &&
+        (resource == null || existing().authorUid == request.auth.uid || isAdmin());
+
+      allow list: if isVerifiedUser() &&
+        (resource.data.authorUid == request.auth.uid || isAdmin());
+
+      allow create: if isVerifiedUser() &&
+        isValidId(inquiryId) &&
+        isValidAtelierInquiry(incoming()) &&
+        incoming().createdAt == request.time;
+
+      allow update: if isVerifiedUser() &&
+        isValidId(inquiryId) &&
+        isValidAtelierInquiry(incoming()) &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().authorUid == existing().authorUid &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['message', 'preferredDate']) &&
+        isAdmin();
+
+      allow delete: if isVerifiedUser() &&
+        isValidId(inquiryId) &&
+        (existing().authorUid == request.auth.uid || isAdmin());
+    }
+
+    // 6. Administrator Role Registry (/admins/{adminUid})
+    match /admins/{adminUid} {
+      allow get: if isVerifiedUser() &&
+        isValidId(adminUid) &&
+        (isOwner(adminUid) || isAdmin());
+
+      allow list: if isVerifiedUser() &&
+        (resource.data.uid == request.auth.uid || isAdmin());
+
+      allow create: if isVerifiedUser() &&
+        isValidId(adminUid) &&
+        isOwner(adminUid) &&
+        isValidAdminRoleRecord(incoming()) &&
+        incoming().grantedAt == request.time;
+
+      allow update: if isVerifiedUser() &&
+        isValidId(adminUid) &&
+        isValidAdminRoleRecord(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().grantedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['grantedAt']) &&
+        isOwner(adminUid);
+
+      allow delete: if isVerifiedUser() &&
+        isValidId(adminUid) &&
+        (isOwner(adminUid) || isBootstrappedAdmin());
+    }
+  }
+}

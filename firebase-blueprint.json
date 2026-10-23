@@ -1,0 +1,434 @@
+{
+  "entities": {
+    "CollectionItem": {
+      "title": "CollectionItem",
+      "description": "A clothing item or ensemble in the Shingar Dresses showcase catalog.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Name of the dress or clothing item",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "category": {
+          "type": "string",
+          "description": "Clothing category name",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "price": {
+          "type": "number",
+          "description": "Optional showroom price in INR (0 indicates price on request)"
+        },
+        "fabric": {
+          "type": "string",
+          "description": "Fabric and embroidery details",
+          "minLength": 1,
+          "maxLength": 150
+        },
+        "silhouette": {
+          "type": "string",
+          "description": "Cut, fit, and styling details",
+          "minLength": 1,
+          "maxLength": 150
+        },
+        "occasion": {
+          "type": "string",
+          "description": "Recommended occasion",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "description": {
+          "type": "string",
+          "description": "Product description and craftsmanship notes",
+          "minLength": 2,
+          "maxLength": 1000
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "Product photograph URL or uploaded data URI",
+          "minLength": 1,
+          "maxLength": 900000
+        },
+        "featured": {
+          "type": "boolean",
+          "description": "Whether featured on the home page"
+        },
+        "lookbookChapter": {
+          "type": "string",
+          "description": "Lookbook series or collection chapter",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "sku": {
+          "type": "string",
+          "description": "Catalog reference code",
+          "minLength": 2,
+          "maxLength": 40,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "availableBranches": {
+          "type": "string",
+          "description": "Showroom branches carrying this piece",
+          "minLength": 1,
+          "maxLength": 250
+        },
+        "authorUid": {
+          "type": "string",
+          "description": "UID of the admin who created or updated the item",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update"
+        }
+      },
+      "required": [
+        "title",
+        "category",
+        "price",
+        "fabric",
+        "silhouette",
+        "occasion",
+        "description",
+        "imageUrl",
+        "featured",
+        "lookbookChapter",
+        "sku",
+        "authorUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ClothingCategory": {
+      "title": "ClothingCategory",
+      "description": "A clothing category managed by the administrator.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Display name of the category",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "description": {
+          "type": "string",
+          "description": "Short category description",
+          "minLength": 0,
+          "maxLength": 300
+        },
+        "order": {
+          "type": "number",
+          "description": "Display sort order"
+        },
+        "authorUid": {
+          "type": "string",
+          "description": "UID of the administrator",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "order",
+        "authorUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "OfferPoster": {
+      "title": "OfferPoster",
+      "description": "Promotional offer or seasonal campaign poster.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Offer headline",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "subtitle": {
+          "type": "string",
+          "description": "Offer subtitle or highlight",
+          "minLength": 2,
+          "maxLength": 160
+        },
+        "privilegeBadge": {
+          "type": "string",
+          "description": "Offer badge label (e.g. 20% Off Bridal Trousseau)",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "validUntil": {
+          "type": "string",
+          "description": "Validity date or period",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "description": {
+          "type": "string",
+          "description": "Offer terms and details",
+          "minLength": 2,
+          "maxLength": 800
+        },
+        "posterUrl": {
+          "type": "string",
+          "description": "Offer poster image URL or uploaded data URI",
+          "minLength": 1,
+          "maxLength": 900000
+        },
+        "privilegeCode": {
+          "type": "string",
+          "description": "In-store reference code",
+          "minLength": 2,
+          "maxLength": 40,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "active": {
+          "type": "boolean",
+          "description": "Whether the offer is active"
+        },
+        "authorUid": {
+          "type": "string",
+          "description": "UID of the admin who published the offer",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update"
+        }
+      },
+      "required": [
+        "title",
+        "subtitle",
+        "privilegeBadge",
+        "validUntil",
+        "description",
+        "posterUrl",
+        "privilegeCode",
+        "active",
+        "authorUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "UserDirectoryRecord": {
+      "title": "UserDirectoryRecord",
+      "description": "Registered customer profile captured upon Google Sign-In.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Full name from Google Sign-In",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Email address from Google Sign-In",
+          "minLength": 3,
+          "maxLength": 180
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "Profile picture URL from Google Sign-In",
+          "minLength": 0,
+          "maxLength": 500
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "First sign-in timestamp"
+        },
+        "lastLoginAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Most recent sign-in timestamp"
+        }
+      },
+      "required": [
+        "uid",
+        "displayName",
+        "email",
+        "photoURL",
+        "createdAt",
+        "lastLoginAt"
+      ]
+    },
+    "AtelierInquiry": {
+      "title": "AtelierInquiry",
+      "description": "Store visit or clothing inquiry submitted via the Contact page.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Customer full name",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Customer email address",
+          "minLength": 3,
+          "maxLength": 180
+        },
+        "phone": {
+          "type": "string",
+          "description": "Customer phone number",
+          "minLength": 5,
+          "maxLength": 30
+        },
+        "preferredDate": {
+          "type": "string",
+          "description": "Preferred store location or visit date",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "dressReference": {
+          "type": "string",
+          "description": "Clothing item or subject of inquiry",
+          "minLength": 1,
+          "maxLength": 150
+        },
+        "message": {
+          "type": "string",
+          "description": "Inquiry message",
+          "minLength": 2,
+          "maxLength": 1000
+        },
+        "authorUid": {
+          "type": "string",
+          "description": "UID of the signed-in user submitting the inquiry",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of submission"
+        }
+      },
+      "required": [
+        "name",
+        "email",
+        "phone",
+        "preferredDate",
+        "dressReference",
+        "message",
+        "authorUid",
+        "createdAt"
+      ]
+    },
+    "AdminRoleRecord": {
+      "title": "AdminRoleRecord",
+      "description": "Document granting administrative privileges to a verified Firebase Auth UID.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the administrator",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Verified email address of the administrator",
+          "minLength": 3,
+          "maxLength": 180
+        },
+        "username": {
+          "type": "string",
+          "description": "Admin identifier",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "grantedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when admin access was verified"
+        }
+      },
+      "required": [
+        "uid",
+        "email",
+        "username",
+        "grantedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/collections/{itemId}": {
+      "schema": {
+        "$ref": "#/entities/CollectionItem"
+      },
+      "description": "Publicly readable catalog of Shingar Dresses clothing items; writable only by the authorised administrator."
+    },
+    "/categories/{categoryId}": {
+      "schema": {
+        "$ref": "#/entities/ClothingCategory"
+      },
+      "description": "Publicly readable clothing categories; writable only by the authorised administrator."
+    },
+    "/offers/{offerId}": {
+      "schema": {
+        "$ref": "#/entities/OfferPoster"
+      },
+      "description": "Publicly readable promotional offers; writable only by the authorised administrator."
+    },
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserDirectoryRecord"
+      },
+      "description": "PII-protected customer records captured via Google Sign-In; readable only by the customer or the authorised administrator."
+    },
+    "/inquiries/{inquiryId}": {
+      "schema": {
+        "$ref": "#/entities/AtelierInquiry"
+      },
+      "description": "Customer store inquiries; creatable by signed-in users and readable by the author or administrator."
+    },
+    "/admins/{adminUid}": {
+      "schema": {
+        "$ref": "#/entities/AdminRoleRecord"
+      },
+      "description": "Role-based access control registry of administrators."
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Shingaar Dresses",
+  "description": "Luxury Indian bridal couture, festive collection lookbook, exhibition offers, and bespoke atelier showcase for Shingaar Dresses.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
