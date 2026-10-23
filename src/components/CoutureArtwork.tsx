@@ -39,7 +39,7 @@ export const CoutureArtwork: React.FC<CoutureArtworkProps> = ({
         />
       ) : (
         <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-gradient-to-b from-stone-100 to-stone-200">
-          <span className="text-[11px] font-mono uppercase tracking-widest text-rose-900 mb-2">
+          <span className="text-[11px] font-mono uppercase tracking-widest text-stone-700 mb-2">
             {subtitle || 'Shingar Dresses'}
           </span>
           <p className="font-serif text-xl text-stone-900 max-w-[220px] leading-snug">

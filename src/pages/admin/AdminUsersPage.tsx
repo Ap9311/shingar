@@ -68,7 +68,7 @@ export const AdminUsersPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-stone-200 pb-6">
         <div>
-          <p className="text-xs text-rose-900 uppercase tracking-widest font-medium mb-1">
+          <p className="text-xs text-stone-600 uppercase tracking-widest font-medium mb-1">
             Google Sign-In Customer Registry
           </p>
           <h1 className="font-serif text-3xl sm:text-4xl text-stone-950">
@@ -85,7 +85,7 @@ export const AdminUsersPage: React.FC = () => {
             <button
               type="button"
               onClick={handleEmailSelected}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-rose-900 text-white text-xs font-medium hover:bg-rose-950 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-stone-800 text-white text-xs font-medium hover:bg-stone-700 transition-colors cursor-pointer"
             >
               <Mail className="w-3.5 h-3.5" />
               <span>Email Selected ({selectedEmails.length})</span>
@@ -93,7 +93,7 @@ export const AdminUsersPage: React.FC = () => {
           )}
           <Link
             to="/admin/email?mode=all"
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-stone-950 text-white text-xs font-medium hover:bg-rose-900 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-stone-950 text-white text-xs font-medium hover:bg-stone-800 transition-colors"
           >
             <Mail className="w-3.5 h-3.5" />
             <span>Email All Customers</span>
@@ -121,7 +121,7 @@ export const AdminUsersPage: React.FC = () => {
             className="inline-flex items-center gap-2 text-xs font-medium text-stone-700 hover:text-stone-950 cursor-pointer"
           >
             {selectedEmails.length === filteredUsers.length ? (
-              <CheckSquare className="w-4 h-4 text-rose-900" />
+              <CheckSquare className="w-4 h-4 text-stone-950" />
             ) : (
               <Square className="w-4 h-4 text-stone-400" />
             )}
@@ -166,7 +166,7 @@ export const AdminUsersPage: React.FC = () => {
                   <tr
                     key={customer.uid}
                     className={`hover:bg-stone-50 transition-colors ${
-                      isSelected ? 'bg-rose-50/40' : ''
+                      isSelected ? 'bg-stone-100' : ''
                     }`}
                   >
                     <td className="py-4 px-4">
@@ -176,7 +176,7 @@ export const AdminUsersPage: React.FC = () => {
                         className="text-stone-500 hover:text-stone-900 cursor-pointer"
                       >
                         {isSelected ? (
-                          <CheckSquare className="w-4 h-4 text-rose-900" />
+                          <CheckSquare className="w-4 h-4 text-stone-950" />
                         ) : (
                           <Square className="w-4 h-4" />
                         )}
@@ -227,7 +227,7 @@ export const AdminUsersPage: React.FC = () => {
                         )}`}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-stone-300 bg-white text-stone-800 hover:border-stone-900 font-medium"
                       >
-                        <Mail className="w-3.5 h-3.5 text-rose-900" />
+                        <Mail className="w-3.5 h-3.5 text-stone-800" />
                         <span>Send Email</span>
                       </Link>
                     </td>

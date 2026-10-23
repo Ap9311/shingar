@@ -9,13 +9,14 @@ import {
   MapPin,
   Phone,
   Clock,
-  Mail,
   Send,
   CheckCircle2,
   ExternalLink,
+  MessageCircle,
+  UserCheck,
 } from 'lucide-react';
 import { useAtelier } from '../context/AtelierContext';
-import { SHINGAAR_BRANCHES } from '../data/seedData';
+import { SHINGAAR_BRANCHES, SHINGAR_CONTACT_DETAILS } from '../data/seedData';
 import { BranchLocatorSection } from '../components/BranchLocatorSection';
 
 export const ContactPage: React.FC = () => {
@@ -26,7 +27,7 @@ export const ContactPage: React.FC = () => {
   const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState('');
   const [preferredDate, setPreferredDate] = useState(
-    'Mumbai — Kala Ghoda Flagship'
+    SHINGAAR_BRANCHES[0]?.name || 'Shingar Dresses — M.G. Road Main Store'
   );
   const [dressReference, setDressReference] = useState('');
   const [message, setMessage] = useState('');
@@ -76,17 +77,17 @@ export const ContactPage: React.FC = () => {
       <section className="bg-stone-50 border-b border-stone-200 py-12 sm:py-16">
         <div className="max-w-[1440px] mx-auto px-4 sm:px-8">
           <div className="max-w-2xl space-y-3">
-            <div className="flex items-center gap-2 text-xs text-stone-500">
-              <span>Concierge &amp; Appointments</span>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-stone-500">
+              <span>Shingar Dresses &amp; Shingar NX</span>
               <span aria-hidden="true">·</span>
-              <span>Mumbai · New Delhi · Jaipur · Surat</span>
+              <span>M.G. Road &amp; Motibaug Road, Junagadh (362001)</span>
             </div>
             <h1 className="font-serif text-4xl sm:text-5xl text-stone-950 tracking-tight">
               Contact &amp; Store Hours
             </h1>
             <p className="text-sm sm:text-base text-stone-600 leading-relaxed">
-              Reach out to our showroom stylists for garment availability, private bridal
-              appointments, or store directions.
+              Connect with our Junagadh showrooms on WhatsApp, phone, or Instagram for
+              garment availability, school uniform inquiries, or in-store visits.
             </p>
           </div>
         </div>
@@ -95,90 +96,135 @@ export const ContactPage: React.FC = () => {
       {/* Main Contact Details + Inquiry Form */}
       <section className="max-w-[1440px] mx-auto px-4 sm:px-8 py-12 sm:py-16 border-b border-stone-200">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-          {/* Left: Store Details, Hours & Social Links */}
-          <div className="lg:col-span-5 space-y-8">
+          {/* Left: Verified Contact Numbers, Branches & Social Channels */}
+          <div className="lg:col-span-5 space-y-6">
+            {/* Direct Phone & WhatsApp Directory */}
             <div className="border border-stone-200 p-6 sm:p-8 bg-stone-50 space-y-6">
               <div>
-                <p className="text-xs font-mono uppercase tracking-wider text-rose-900">
-                  Flagship Showroom
+                <p className="text-xs font-mono uppercase tracking-wider text-stone-600">
+                  Official Helpline &amp; WhatsApp
                 </p>
                 <h2 className="font-serif text-2xl text-stone-950 mt-1">
-                  Shingar Dresses — Mumbai Flagship
+                  Direct Store Numbers
                 </h2>
               </div>
 
-              <div className="space-y-3 text-sm text-stone-700">
-                <p className="flex items-start gap-3">
-                  <MapPin className="w-4 h-4 text-rose-900 shrink-0 mt-1" />
-                  <span>
-                    14 Rampart Row, Heritage Precinct, Kala Ghoda, Fort, Mumbai 400001
-                  </span>
-                </p>
-                <p className="flex items-center gap-3">
-                  <Phone className="w-4 h-4 text-stone-400 shrink-0" />
-                  <span>+91 22 2284 7900</span>
-                </p>
-                <p className="flex items-center gap-3">
-                  <Mail className="w-4 h-4 text-stone-400 shrink-0" />
-                  <span>concierge@shingardresses.com</span>
-                </p>
-                <p className="flex items-center gap-3">
-                  <Clock className="w-4 h-4 text-stone-400 shrink-0" />
-                  <span>Monday – Sunday · 11:00 AM – 8:30 PM IST</span>
-                </p>
+              <div className="space-y-3 text-sm">
+                {SHINGAR_CONTACT_DETAILS.whatsappNumbers.map((item) => {
+                  return (
+                    <div
+                      key={item.raw}
+                      className="flex items-center justify-between p-3 bg-white border border-stone-200"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Phone className="w-4 h-4 text-stone-700 shrink-0" />
+                        <div>
+                          <p className="text-[11px] text-stone-500">
+                            {item.label}
+                          </p>
+                          <a
+                            href={`tel:+${item.raw}`}
+                            className="font-mono font-semibold text-stone-950 hover:text-stone-600"
+                          >
+                            {item.number}
+                          </a>
+                        </div>
+                      </div>
+                      <a
+                        href={`https://wa.me/${item.raw}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-colors"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        <span>WhatsApp</span>
+                      </a>
+                    </div>
+                  );
+                })}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div className="p-3 bg-white border border-stone-200">
+                    <p className="text-[11px] text-stone-500">Store Landline</p>
+                    <a
+                      href="tel:+912852651406"
+                      className="font-mono text-xs font-semibold text-stone-900 mt-0.5 block"
+                    >
+                      {SHINGAR_CONTACT_DETAILS.landline}
+                    </a>
+                  </div>
+                  <div className="p-3 bg-white border border-stone-200">
+                    <p className="text-[11px] text-stone-500 flex items-center gap-1">
+                      <UserCheck className="w-3 h-3 text-stone-700" />
+                      <span>Owner ({SHINGAR_CONTACT_DETAILS.ownerName})</span>
+                    </p>
+                    <a
+                      href="tel:+919428241901"
+                      className="font-mono text-xs font-semibold text-stone-900 mt-0.5 block"
+                    >
+                      {SHINGAR_CONTACT_DETAILS.ownerPhone}
+                    </a>
+                  </div>
+                </div>
               </div>
 
+              {/* Instagram Channels */}
               <div className="pt-4 border-t border-stone-200 space-y-3">
                 <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">
-                  Official Social Channels
+                  Official Instagram Pages
                 </p>
-                <div className="flex flex-wrap gap-3 text-xs font-medium">
-                  <a
-                    href="https://www.instagram.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3.5 py-2 border border-stone-300 bg-white text-stone-800 hover:border-stone-900 inline-flex items-center gap-1.5"
-                  >
-                    <span>Instagram</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                  <a
-                    href="https://www.pinterest.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3.5 py-2 border border-stone-300 bg-white text-stone-800 hover:border-stone-900 inline-flex items-center gap-1.5"
-                  >
-                    <span>Pinterest</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                  <a
-                    href="https://www.facebook.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3.5 py-2 border border-stone-300 bg-white text-stone-800 hover:border-stone-900 inline-flex items-center gap-1.5"
-                  >
-                    <span>Facebook</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {SHINGAR_CONTACT_DETAILS.instagramHandles.map((ig) => (
+                    <a
+                      key={ig.handle}
+                      href={ig.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-3 border border-stone-300 bg-white hover:border-stone-950 transition-colors flex items-center justify-between"
+                    >
+                      <div>
+                        <p className="text-xs font-mono font-semibold text-stone-950">
+                          {ig.handle}
+                        </p>
+                        <p className="text-[11px] text-stone-500">{ig.label}</p>
+                      </div>
+                      <ExternalLink className="w-3.5 h-3.5 text-stone-700 shrink-0" />
+                    </a>
+                  ))}
                 </div>
               </div>
             </div>
 
-            {/* Regional Branches Quick List */}
+            {/* Both Junagadh Branches & Opening Hours */}
             <div className="space-y-3">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-stone-500">
-                Regional Showrooms
+                Showroom Locations &amp; Opening Hours
               </h3>
               <div className="space-y-3">
-                {SHINGAAR_BRANCHES.slice(1).map((branch) => (
+                {SHINGAAR_BRANCHES.map((branch) => (
                   <div
                     key={branch.id}
-                    className="border border-stone-200 p-4 bg-white space-y-1 text-xs"
+                    className="border border-stone-200 p-5 bg-white space-y-2.5 text-xs"
                   >
-                    <p className="font-semibold text-stone-900">{branch.name}</p>
-                    <p className="text-stone-600">{branch.address}</p>
-                    <p className="text-stone-500">
-                      {branch.phone} · {branch.hours}
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-serif text-lg text-stone-950">{branch.name}</p>
+                      <a
+                        href={branch.directionsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-stone-900 font-medium inline-flex items-center gap-1 shrink-0 hover:underline"
+                      >
+                        <span>Directions</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                    <p className="text-stone-600 flex items-start gap-2 leading-relaxed">
+                      <MapPin className="w-3.5 h-3.5 text-stone-700 shrink-0 mt-0.5" />
+                      <span>{branch.address}</span>
+                    </p>
+                    <p className="text-stone-700 flex items-start gap-2 leading-relaxed">
+                      <Clock className="w-3.5 h-3.5 text-stone-400 shrink-0 mt-0.5" />
+                      <span>{branch.hours}</span>
                     </p>
                   </div>
                 ))}
@@ -191,12 +237,11 @@ export const ContactPage: React.FC = () => {
             <div className="border border-stone-200 p-6 sm:p-10 bg-white">
               <div className="mb-6">
                 <h2 className="font-serif text-3xl text-stone-950">
-                  Book a Store Visit or Garment Inquiry
+                  Send a Store Inquiry
                 </h2>
                 <p className="text-sm text-stone-600 mt-1">
-                  Submit your preferred showroom and garment reference. If you are not yet
-                  signed in, you will be prompted to sign in with Google to verify your
-                  contact details.
+                  Inquire about specific garments, bulk school uniforms, or plan a visit
+                  to our M.G. Road or Motibaug Road showrooms in Junagadh.
                 </p>
               </div>
 
@@ -207,13 +252,13 @@ export const ContactPage: React.FC = () => {
                     <span>Your showroom inquiry has been registered.</span>
                   </div>
                   <p className="text-xs text-stone-600 leading-relaxed">
-                    Our stylist team at <strong>{preferredDate}</strong> has received your
-                    request and will coordinate your in-store viewing.
+                    Our team at <strong>{preferredDate}</strong> has received your
+                    details and will get in touch with you shortly.
                   </p>
                   <button
                     type="button"
                     onClick={() => setSubmitted(false)}
-                    className="px-4 py-2 bg-stone-950 text-white text-xs font-medium"
+                    className="px-4 py-2 bg-stone-950 text-white text-xs font-medium cursor-pointer"
                   >
                     Send Another Inquiry
                   </button>
@@ -221,7 +266,7 @@ export const ContactPage: React.FC = () => {
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-5">
                   {errorMsg && (
-                    <div className="p-3.5 bg-rose-50 border border-rose-200 text-xs text-rose-900">
+                    <div className="p-3.5 bg-stone-100 border border-stone-300 text-xs text-stone-900">
                       {errorMsg}
                     </div>
                   )}
@@ -258,20 +303,20 @@ export const ContactPage: React.FC = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-stone-700 mb-1.5">
-                        Phone Number *
+                        Phone / WhatsApp Number *
                       </label>
                       <input
                         type="tel"
                         required
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
-                        placeholder="+91 98201 74500"
+                        placeholder="+91 98251 21298"
                         className="w-full px-3.5 py-2.5 border border-stone-300 text-sm focus:outline-none focus:border-stone-900"
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-stone-700 mb-1.5">
-                        Preferred Showroom Branch
+                        Preferred Junagadh Showroom
                       </label>
                       <select
                         value={preferredDate}
@@ -295,21 +340,21 @@ export const ContactPage: React.FC = () => {
                       type="text"
                       value={dressReference}
                       onChange={(e) => setDressReference(e.target.value)}
-                      placeholder="e.g. Arundhati Sindoor Zardozi Lehenga (SHG-BL-101)"
+                      placeholder="e.g. Royal Ivory Jacquard Kurta-Pyjama Set (SHG-MKP-101)"
                       className="w-full px-3.5 py-2.5 border border-stone-300 text-sm focus:outline-none focus:border-stone-900"
                     />
                   </div>
 
                   <div>
                     <label className="block text-xs font-medium text-stone-700 mb-1.5">
-                      Message &amp; Preferred Visit Date *
+                      Message &amp; Visit Details *
                     </label>
                     <textarea
                       rows={4}
                       required
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Share your preferred appointment date, bridal/festive requirements, or questions..."
+                      placeholder="Share your preferred visit time, size/availability question, or garment inquiry..."
                       className="w-full px-3.5 py-2.5 border border-stone-300 text-sm focus:outline-none focus:border-stone-900"
                     />
                   </div>
@@ -317,10 +362,12 @@ export const ContactPage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-stone-950 text-white text-xs font-medium hover:bg-rose-900 transition-colors cursor-pointer disabled:opacity-50"
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-stone-950 text-white text-xs font-medium hover:bg-stone-800 transition-colors cursor-pointer disabled:opacity-50"
                   >
                     <Send className="w-3.5 h-3.5" />
-                    <span>{submitting ? 'Submitting Inquiry...' : 'Submit Store Inquiry'}</span>
+                    <span>
+                      {submitting ? 'Submitting Inquiry...' : 'Submit Store Inquiry'}
+                    </span>
                   </button>
                 </form>
               )}

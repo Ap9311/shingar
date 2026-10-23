@@ -74,7 +74,7 @@ export const AdminCollectionPage: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<string>(
-    categoryNames[0] || 'Bridal Lehengas'
+    categoryNames[0] || "Men's Readymade & Kurta-Pyjamas"
   );
   const [priceInput, setPriceInput] = useState<string>('');
   const [fabric, setFabric] = useState('');
@@ -84,11 +84,11 @@ export const AdminCollectionPage: React.FC = () => {
   const [imageUrl, setImageUrl] = useState('');
   const [featured, setFeatured] = useState(true);
   const [lookbookChapter, setLookbookChapter] = useState(
-    '01. The Royal Sindoor Trousseau'
+    '01. Royal Ethnic & Festive Kurta Edit'
   );
   const [sku, setSku] = useState('');
   const [availableBranches, setAvailableBranches] = useState(
-    'Mumbai (Kala Ghoda Flagship), New Delhi (Mehrauli), Jaipur (Johari Bazaar)'
+    'Shingar Dresses (M.G. Road, Junagadh), Shingar NX (Motibaug Road, Junagadh)'
   );
 
   const [savingItem, setSavingItem] = useState(false);
@@ -99,7 +99,7 @@ export const AdminCollectionPage: React.FC = () => {
   const resetItemForm = () => {
     setEditingId(null);
     setTitle('');
-    setCategory(categoryNames[0] || 'Bridal Lehengas');
+    setCategory(categoryNames[0] || "Men's Readymade & Kurta-Pyjamas");
     setPriceInput('');
     setFabric('');
     setSilhouette('');
@@ -107,10 +107,10 @@ export const AdminCollectionPage: React.FC = () => {
     setDescription('');
     setImageUrl('');
     setFeatured(true);
-    setLookbookChapter('01. The Royal Sindoor Trousseau');
+    setLookbookChapter('01. Royal Ethnic & Festive Kurta Edit');
     setSku('');
     setAvailableBranches(
-      'Mumbai (Kala Ghoda Flagship), New Delhi (Mehrauli), Jaipur (Johari Bazaar)'
+      'Shingar Dresses (M.G. Road, Junagadh), Shingar NX (Motibaug Road, Junagadh)'
     );
   };
 
@@ -129,7 +129,7 @@ export const AdminCollectionPage: React.FC = () => {
     setSku(item.sku);
     setAvailableBranches(
       item.availableBranches ||
-        'Mumbai (Kala Ghoda Flagship), New Delhi (Mehrauli), Jaipur (Johari Bazaar)'
+        'Shingar Dresses (M.G. Road, Junagadh), Shingar NX (Motibaug Road, Junagadh)'
     );
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -261,7 +261,7 @@ export const AdminCollectionPage: React.FC = () => {
   return (
     <div className="space-y-12">
       <div>
-        <p className="text-xs text-rose-900 uppercase tracking-widest font-medium mb-1">
+        <p className="text-xs text-stone-600 uppercase tracking-widest font-medium mb-1">
           Catalog &amp; Taxonomy Management
         </p>
         <h1 className="font-serif text-3xl sm:text-4xl text-stone-950">
@@ -279,7 +279,7 @@ export const AdminCollectionPage: React.FC = () => {
       )}
 
       {errorMessage && (
-        <div className="p-4 bg-rose-50 border border-rose-200 text-xs text-rose-900 flex items-center justify-between">
+        <div className="p-4 bg-stone-100 border border-stone-300 text-xs text-stone-900 flex items-center justify-between">
           <span>{errorMessage}</span>
           <button type="button" onClick={() => setErrorMessage(null)}>
             <X className="w-4 h-4" />
@@ -334,7 +334,7 @@ export const AdminCollectionPage: React.FC = () => {
             <button
               type="submit"
               disabled={savingCategory}
-              className="flex-1 py-2.5 px-4 bg-stone-950 text-white text-xs font-medium hover:bg-rose-900 transition-colors inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="flex-1 py-2.5 px-4 bg-stone-950 text-white text-xs font-medium hover:bg-stone-800 transition-colors inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
               <FolderPlus className="w-3.5 h-3.5" />
               <span>{editingCatId ? 'Update Category' : 'Add Category'}</span>
@@ -384,7 +384,7 @@ export const AdminCollectionPage: React.FC = () => {
                   type="button"
                   onClick={() => handleDeleteCategory(cat)}
                   title="Delete Category"
-                  className="p-1.5 text-stone-500 hover:text-rose-900 border border-stone-200 bg-white"
+                  className="p-1.5 text-stone-500 hover:text-stone-950 border border-stone-200 bg-white"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -595,7 +595,7 @@ export const AdminCollectionPage: React.FC = () => {
                 type="checkbox"
                 checked={featured}
                 onChange={(e) => setFeatured(e.target.checked)}
-                className="w-4 h-4 accent-rose-900"
+                className="w-4 h-4 accent-stone-950"
               />
               <label
                 htmlFor="featured-toggle"
@@ -610,7 +610,7 @@ export const AdminCollectionPage: React.FC = () => {
             <button
               type="submit"
               disabled={savingItem}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-stone-950 text-white text-xs font-medium hover:bg-rose-900 transition-colors cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-stone-950 text-white text-xs font-medium hover:bg-stone-800 transition-colors cursor-pointer disabled:opacity-50"
             >
               {editingId ? (
                 <>
@@ -658,7 +658,7 @@ export const AdminCollectionPage: React.FC = () => {
                     <span className="font-mono">{item.sku}</span>
                   </div>
                   <h3 className="font-serif text-xl text-stone-950">{item.title}</h3>
-                  <p className="text-sm font-mono tabular-nums font-medium text-rose-900">
+                  <p className="text-sm font-mono tabular-nums font-medium text-stone-900">
                     {item.price > 0
                       ? `₹${item.price.toLocaleString('en-IN')}`
                       : 'Price on Request'}
@@ -681,7 +681,7 @@ export const AdminCollectionPage: React.FC = () => {
                     type="button"
                     onClick={() => handleDeleteItem(item)}
                     disabled={deletingId === item.id}
-                    className="py-2 px-3 border border-rose-200 text-xs font-medium text-rose-900 hover:bg-rose-50 inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    className="py-2 px-3 border border-stone-300 text-xs font-medium text-stone-800 hover:bg-stone-100 inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>{deletingId === item.id ? 'Deleting...' : 'Delete'}</span>

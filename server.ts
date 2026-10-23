@@ -15,9 +15,15 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const AUTHORIZED_ADMIN_EMAIL = (
-  process.env.AUTHORIZED_ADMIN_EMAIL || 'akshatpopat9311@gmail.com'
-).toLowerCase();
+const AUTHORIZED_ADMIN_EMAILS = [
+  'akshatpopat9311@gmail.com',
+  'support.obsidian@gmail.com',
+];
+
+function isAuthorizedAdminEmail(email: string): boolean {
+  return AUTHORIZED_ADMIN_EMAILS.includes(String(email || '').toLowerCase().trim());
+}
+
 const SESSION_SECRET =
   process.env.ADMIN_SESSION_SECRET || 'shingar-dresses-admin-hmac-secret-2026';
 const FIREBASE_PROJECT_ID = 'obsidian-507319';
@@ -83,7 +89,7 @@ function verifyAdminSessionToken(token: string): {
     if (signature !== expectedSig) return { valid: false };
     const decoded = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf-8'));
     if (Date.now() > decoded.expiresAt) return { valid: false };
-    if (String(decoded.email || '').toLowerCase() !== AUTHORIZED_ADMIN_EMAIL) {
+    if (!isAuthorizedAdminEmail(decoded.email)) {
       return { valid: false };
     }
     return { valid: true, email: decoded.email, uid: decoded.uid };
@@ -116,11 +122,11 @@ async function startServer() {
       return;
     }
 
-    if (verifiedUser.email !== AUTHORIZED_ADMIN_EMAIL) {
+    if (!isAuthorizedAdminEmail(verifiedUser.email)) {
       res.status(403).json({
         authorized: false,
         email: verifiedUser.email,
-        error: `Access denied. Only ${AUTHORIZED_ADMIN_EMAIL} is authorised to access the Shingar Dresses Admin Panel.`,
+        error: `Access denied. Only ${AUTHORIZED_ADMIN_EMAILS.join(' or ')} are authorised to access the Shingar Dresses Admin Panel.`,
       });
       return;
     }
@@ -189,7 +195,7 @@ async function startServer() {
     if (!adminCheck.valid) {
       res.status(403).json({
         sent: false,
-        error: `Unauthorised request. Only ${AUTHORIZED_ADMIN_EMAIL} may dispatch customer emails.`,
+        error: `Unauthorised request. Only ${AUTHORIZED_ADMIN_EMAILS.join(' or ')} may dispatch customer emails.`,
       });
       return;
     }

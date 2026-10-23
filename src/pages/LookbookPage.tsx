@@ -100,7 +100,7 @@ export const LookbookPage: React.FC = () => {
                   </span>
                   <span className="font-mono">{item.sku}</span>
                 </div>
-                <h2 className="font-serif text-2xl text-stone-950 group-hover:text-rose-900 transition-colors">
+                <h2 className="font-serif text-2xl text-stone-950 group-hover:text-stone-600 transition-colors">
                   {item.title}
                 </h2>
                 <p className="text-xs text-stone-500">{item.fabric}</p>
@@ -133,7 +133,7 @@ export const LookbookPage: React.FC = () => {
             <div className="md:col-span-5 p-6 sm:p-8 flex flex-col justify-between space-y-6">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono text-rose-900">
+                  <span className="text-xs font-mono text-stone-600">
                     {lightboxItem.lookbookChapter}
                   </span>
                   <button
@@ -181,7 +181,7 @@ export const LookbookPage: React.FC = () => {
               <div className="flex flex-col gap-2.5">
                 <Link
                   to={`/collection?piece=${encodeURIComponent(lightboxItem.id)}`}
-                  className="w-full py-3 bg-stone-950 text-white text-xs font-medium flex items-center justify-center gap-2 hover:bg-rose-900 transition-colors"
+                  className="w-full py-3 bg-stone-950 text-white text-xs font-medium flex items-center justify-center gap-2 hover:bg-stone-800 transition-colors"
                 >
                   <span>Open in Collection Catalog</span>
                   <ArrowRight className="w-3.5 h-3.5" />

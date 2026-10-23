@@ -51,7 +51,7 @@ export const AdminOverviewPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-stone-200 pb-6">
         <div>
-          <p className="text-xs text-rose-900 uppercase tracking-widest font-medium mb-1">
+          <p className="text-xs text-stone-600 uppercase tracking-widest font-medium mb-1">
             Store Management Overview
           </p>
           <h1 className="font-serif text-3xl sm:text-4xl text-stone-950">
@@ -71,7 +71,7 @@ export const AdminOverviewPage: React.FC = () => {
           </button>
           <Link
             to="/admin/email"
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-stone-950 text-white text-xs font-medium hover:bg-rose-900 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-stone-950 text-white text-xs font-medium hover:bg-stone-800 transition-colors"
           >
             <Mail className="w-3.5 h-3.5" />
             <span>Open Email Composer</span>
@@ -93,7 +93,7 @@ export const AdminOverviewPage: React.FC = () => {
         >
           <div className="flex items-center justify-between text-stone-500 text-xs">
             <span>Clothing Items</span>
-            <Shirt className="w-4 h-4 text-rose-900" />
+            <Shirt className="w-4 h-4 text-stone-800" />
           </div>
           <p className="font-mono text-3xl font-semibold text-stone-950 mt-4 tabular-nums">
             {collections.length}
@@ -109,7 +109,7 @@ export const AdminOverviewPage: React.FC = () => {
         >
           <div className="flex items-center justify-between text-stone-500 text-xs">
             <span>Promotional Offers</span>
-            <Tag className="w-4 h-4 text-rose-900" />
+            <Tag className="w-4 h-4 text-stone-800" />
           </div>
           <p className="font-mono text-3xl font-semibold text-stone-950 mt-4 tabular-nums">
             {offers.length}
@@ -125,7 +125,7 @@ export const AdminOverviewPage: React.FC = () => {
         >
           <div className="flex items-center justify-between text-stone-500 text-xs">
             <span>Registered Customers</span>
-            <Users className="w-4 h-4 text-rose-900" />
+            <Users className="w-4 h-4 text-stone-800" />
           </div>
           <p className="font-mono text-3xl font-semibold text-stone-950 mt-4 tabular-nums">
             {usersDirectory.length}
@@ -141,7 +141,7 @@ export const AdminOverviewPage: React.FC = () => {
         >
           <div className="flex items-center justify-between text-stone-500 text-xs">
             <span>Customer Communications</span>
-            <Mail className="w-4 h-4 text-rose-900" />
+            <Mail className="w-4 h-4 text-stone-800" />
           </div>
           <p className="font-serif text-2xl font-medium text-stone-950 mt-4">
             Email Composer
@@ -158,7 +158,7 @@ export const AdminOverviewPage: React.FC = () => {
         <div className="lg:col-span-7 bg-white border border-stone-200 p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-stone-200 pb-4">
             <div className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-rose-900" />
+              <MessageSquare className="w-4 h-4 text-stone-800" />
               <h2 className="font-serif text-2xl text-stone-950">
                 Customer Store Inquiries ({inquiries.length})
               </h2>
@@ -186,7 +186,7 @@ export const AdminOverviewPage: React.FC = () => {
                     </span>
                     <span className="font-mono text-stone-500">{inq.phone}</span>
                   </div>
-                  <p className="text-rose-900 font-medium">
+                  <p className="text-stone-800 font-medium">
                     {inq.dressReference} · {inq.preferredDate}
                   </p>
                   <p className="text-stone-600">{inq.message}</p>
@@ -200,14 +200,14 @@ export const AdminOverviewPage: React.FC = () => {
         <div className="lg:col-span-5 bg-white border border-stone-200 p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-stone-200 pb-4">
             <div className="flex items-center gap-2">
-              <FolderKanban className="w-4 h-4 text-rose-900" />
+              <FolderKanban className="w-4 h-4 text-stone-800" />
               <h2 className="font-serif text-2xl text-stone-950">
                 Clothing Categories ({categories.length})
               </h2>
             </div>
             <Link
               to="/admin/collection"
-              className="text-xs font-medium text-rose-900 hover:underline inline-flex items-center gap-1"
+              className="text-xs font-medium text-stone-900 hover:underline inline-flex items-center gap-1"
             >
               <span>Manage</span>
               <ArrowRight className="w-3 h-3" />

@@ -17,14 +17,14 @@ export const BranchLocatorSection: React.FC = () => {
     <section className="bg-stone-50 border-t border-stone-200 py-16 sm:py-24">
       <div className="max-w-[1440px] mx-auto px-4 sm:px-8">
         <div className="max-w-2xl mb-10 space-y-2">
-          <p className="text-xs text-rose-900 uppercase tracking-widest font-medium">
+          <p className="text-xs text-stone-600 uppercase tracking-widest font-medium">
             Interactive Store Locator
           </p>
           <h2 className="font-serif text-3xl sm:text-4xl text-stone-950">
             Visit a Shingar Dresses Showroom
           </h2>
           <p className="text-sm text-stone-600">
-            Select a city below to view the store address, opening hours, and live
+            Select a showroom below to view the store address, opening hours, and live
             interactive map.
           </p>
         </div>
@@ -48,7 +48,7 @@ export const BranchLocatorSection: React.FC = () => {
                   <div className="flex items-center justify-between text-xs mb-1">
                     <span
                       className={`font-mono uppercase tracking-wider ${
-                        active ? 'text-rose-300' : 'text-rose-900'
+                        active ? 'text-stone-300' : 'text-stone-600'
                       }`}
                     >
                       {branch.city}
@@ -93,7 +93,7 @@ export const BranchLocatorSection: React.FC = () => {
                   {selectedBranch.name}
                 </p>
                 <p className="flex items-center gap-2">
-                  <MapPin className="w-3.5 h-3.5 text-rose-900 shrink-0" />
+                  <MapPin className="w-3.5 h-3.5 text-stone-700 shrink-0" />
                   <span>{selectedBranch.address}</span>
                 </p>
                 <p className="flex items-center gap-2">
@@ -109,7 +109,7 @@ export const BranchLocatorSection: React.FC = () => {
                 href={selectedBranch.directionsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-stone-950 text-white text-xs font-medium hover:bg-rose-900 transition-colors whitespace-nowrap shrink-0"
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-stone-950 text-white text-xs font-medium hover:bg-stone-800 transition-colors whitespace-nowrap shrink-0"
               >
                 <span>Open in Google Maps</span>
                 <ExternalLink className="w-3.5 h-3.5" />

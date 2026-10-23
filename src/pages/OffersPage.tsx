@@ -37,8 +37,8 @@ export const OffersPage: React.FC = () => {
             </h1>
             <p className="text-sm sm:text-base text-stone-600 leading-relaxed">
               Present any of the promotional reference codes below during your visit to
-              our Mumbai, New Delhi, Jaipur, or Surat showrooms to redeem seasonal
-              privileges.
+              our Shingar Dresses (M.G. Road) or Shingar NX (Motibaug Road) showrooms in
+              Junagadh to redeem seasonal privileges.
             </p>
           </div>
         </div>
@@ -64,7 +64,7 @@ export const OffersPage: React.FC = () => {
 
               <div className="lg:col-span-7 p-6 sm:p-10 flex flex-col justify-between space-y-6">
                 <div className="space-y-3">
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-rose-900 font-medium">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-stone-800 font-semibold">
                     <span>{offer.privilegeBadge}</span>
                     <span aria-hidden="true">·</span>
                     <span className="text-stone-500 font-normal">{offer.validUntil}</span>
@@ -109,7 +109,7 @@ export const OffersPage: React.FC = () => {
                       to={`/contact?dress=${encodeURIComponent(
                         `Offer Redemption: ${offer.privilegeCode}`
                       )}`}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-stone-950 text-white text-xs font-medium hover:bg-rose-900 transition-colors"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-stone-950 text-white text-xs font-medium hover:bg-stone-800 transition-colors"
                     >
                       <span>Book Showroom Visit</span>
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -118,7 +118,7 @@ export const OffersPage: React.FC = () => {
                       to="/about"
                       className="inline-flex items-center gap-1.5 px-4 py-2.5 border border-stone-300 text-xs font-medium text-stone-800 hover:border-stone-900"
                     >
-                      <MapPin className="w-3.5 h-3.5 text-rose-900" />
+                      <MapPin className="w-3.5 h-3.5 text-stone-700" />
                       <span>Store Locations</span>
                     </Link>
                   </div>

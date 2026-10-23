@@ -15,7 +15,6 @@ import React, {
 import {
   User,
   onAuthStateChanged,
-  signInWithPopup,
   signOut as firebaseSignOut,
 } from 'firebase/auth';
 import {
@@ -30,7 +29,10 @@ import {
 import {
   auth,
   db,
-  googleProvider,
+  signInCustomerWithGoogle,
+  signInAdminWithGmailAccess,
+  getGmailAccessToken,
+  clearGmailAccessToken,
   handleFirestoreError,
   OperationType,
 } from '../firebase';
@@ -50,7 +52,16 @@ import {
   resolveFashionImageUrl,
 } from '../data/seedData';
 
-export const AUTHORIZED_ADMIN_EMAIL = 'akshatpopat9311@gmail.com';
+export const AUTHORIZED_ADMIN_EMAILS = [
+  'akshatpopat9311@gmail.com',
+  'support.obsidian@gmail.com',
+];
+export const AUTHORIZED_ADMIN_EMAIL = AUTHORIZED_ADMIN_EMAILS.join(' / ');
+
+export function isAuthorizedAdminEmail(email?: string | null): boolean {
+  if (!email) return false;
+  return AUTHORIZED_ADMIN_EMAILS.includes(email.toLowerCase().trim());
+}
 
 interface AtelierContextValue {
   user: User | null;
@@ -58,6 +69,9 @@ interface AtelierContextValue {
   isSigningIn: boolean;
   authError: string | null;
   signInWithGoogle: () => Promise<User | null>;
+  signInAdminWithGoogle: () => Promise<{ user: User | null; accessToken: string | null }>;
+  connectAdminGmail: () => Promise<string | null>;
+  gmailAccessToken: string | null;
   signOutUser: () => Promise<void>;
 
   // Admin state (Firebase Auth + Server-Side Token Verification)
@@ -116,6 +130,9 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [authReady, setAuthReady] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [gmailAccessToken, setGmailAccessToken] = useState<string | null>(() =>
+    getGmailAccessToken()
+  );
 
   const [isServerAdminAuthenticated, setIsServerAdminAuthenticated] = useState(false);
   const [isFirestoreAdminGranted, setIsFirestoreAdminGranted] = useState(false);
@@ -185,13 +202,13 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const email = (activeUser.email || '').toLowerCase().trim();
       const uid = sanitizeId(activeUser.uid);
 
-      if (email !== AUTHORIZED_ADMIN_EMAIL) {
+      if (!isAuthorizedAdminEmail(email)) {
         setIsServerAdminAuthenticated(false);
         setIsFirestoreAdminGranted(false);
         setAdminServerToken(null);
         sessionStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
         setAdminAuthError(
-          `Signed in as ${activeUser.email}. Only ${AUTHORIZED_ADMIN_EMAIL} is authorised to access the Shingar Dresses Admin Panel.`
+          `Signed in as ${activeUser.email}. Only ${AUTHORIZED_ADMIN_EMAILS.join(' or ')} are authorised to access the Shingar Dresses Admin Panel.`
         );
         return false;
       }
@@ -216,7 +233,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
           setIsFirestoreAdminGranted(false);
           setAdminAuthError(
             data?.error ||
-              `Server authorization denied. Only ${AUTHORIZED_ADMIN_EMAIL} is permitted.`
+              `Server authorization denied. Only ${AUTHORIZED_ADMIN_EMAILS.join(' or ')} are permitted.`
           );
           return false;
         }
@@ -232,7 +249,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
           if (!snap.exists()) {
             await setDoc(adminDocRef, {
               uid,
-              email: activeUser.email || AUTHORIZED_ADMIN_EMAIL,
+              email: activeUser.email || AUTHORIZED_ADMIN_EMAILS[0],
               username: 'shingar',
               grantedAt: serverTimestamp(),
             });
@@ -265,7 +282,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (currentUser) {
         await syncUserRecordToFirestore(currentUser);
         const email = (currentUser.email || '').toLowerCase().trim();
-        if (email === AUTHORIZED_ADMIN_EMAIL) {
+        if (isAuthorizedAdminEmail(email)) {
           await authorizeAdminWithServer(currentUser);
         } else {
           setIsServerAdminAuthenticated(false);
@@ -277,6 +294,8 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setIsServerAdminAuthenticated(false);
         setIsFirestoreAdminGranted(false);
         setAdminServerToken(null);
+        clearGmailAccessToken();
+        setGmailAccessToken(null);
         sessionStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
         setAdminAuthError(null);
       }
@@ -285,6 +304,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [syncUserRecordToFirestore, authorizeAdminWithServer]);
 
   // Public real-time listeners for `/collections`, `/categories`, and `/offers`
+  // Never throw uncaught errors on public listeners so signed-in customers can always browse all pages smoothly
   useEffect(() => {
     if (!authReady) return;
 
@@ -297,7 +317,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
           return {
             id: docSnap.id,
             title: String(d.title || ''),
-            category: (d.category as DressCategory) || 'Bridal Lehengas',
+            category: (d.category as DressCategory) || "Men's Readymade & Kurta-Pyjamas",
             price: Number(d.price ?? 0),
             fabric: String(d.fabric || ''),
             silhouette: String(d.silhouette || ''),
@@ -305,11 +325,13 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
             description: String(d.description || ''),
             imageUrl: resolveFashionImageUrl(String(d.imageUrl || ''), sku),
             featured: Boolean(d.featured),
-            lookbookChapter: String(d.lookbookChapter || '01. The Royal Sindoor Trousseau'),
+            lookbookChapter: String(
+              d.lookbookChapter || '01. Royal Ethnic & Festive Kurta Edit'
+            ),
             sku,
             availableBranches: String(
               d.availableBranches ||
-                'Mumbai (Kala Ghoda Flagship), New Delhi (Mehrauli), Jaipur (Johari Bazaar)'
+                'Shingar Dresses (M.G. Road, Junagadh), Shingar NX (Motibaug Road, Junagadh)'
             ),
             authorUid: String(d.authorUid || ''),
             createdAt: d.createdAt,
@@ -321,8 +343,9 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setCatalogSnapshotReady(true);
       },
       (error) => {
+        console.warn('Collections snapshot fallback active:', error);
         setIsLoadingCatalog(false);
-        handleFirestoreError(error, OperationType.LIST, 'collections');
+        setCatalogSnapshotReady(true);
       }
     );
 
@@ -346,7 +369,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setFirestoreCategories(cats);
       },
       (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'categories');
+        console.warn('Categories snapshot fallback active:', error);
       }
     );
 
@@ -374,7 +397,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setFirestoreOffers(items);
       },
       (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'offers');
+        console.warn('Offers snapshot fallback active:', error);
       }
     );
 
@@ -387,7 +410,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const isAdminUnlocked = Boolean(
     user &&
-      (user.email || '').toLowerCase().trim() === AUTHORIZED_ADMIN_EMAIL &&
+      isAuthorizedAdminEmail(user.email) &&
       isServerAdminAuthenticated &&
       isFirestoreAdminGranted
   );
@@ -417,7 +440,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setUsersDirectory(list);
       },
       (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'users');
+        console.warn('Admin users listener notice:', error);
       }
     );
 
@@ -441,7 +464,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setInquiries(list);
       },
       (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'inquiries');
+        console.warn('Admin inquiries listener notice:', error);
       }
     );
 
@@ -483,22 +506,6 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           });
-        } else {
-          // If an older document has a legacy SVG data URI, upgrade its photo URL in Firestore
-          const existingData = snap.data();
-          if (
-            typeof existingData.imageUrl === 'string' &&
-            existingData.imageUrl.startsWith('data:image/svg+xml') &&
-            existingData.createdAt
-          ) {
-            await setDoc(docRef, {
-              ...item,
-              imageUrl: item.imageUrl,
-              authorUid: user.uid,
-              createdAt: existingData.createdAt,
-              updatedAt: serverTimestamp(),
-            });
-          }
         }
       }
 
@@ -514,25 +521,10 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           });
-        } else {
-          const existingData = snap.data();
-          if (
-            typeof existingData.posterUrl === 'string' &&
-            existingData.posterUrl.startsWith('data:image/svg+xml') &&
-            existingData.createdAt
-          ) {
-            await setDoc(docRef, {
-              ...offer,
-              posterUrl: offer.posterUrl,
-              authorUid: user.uid,
-              createdAt: existingData.createdAt,
-              updatedAt: serverTimestamp(),
-            });
-          }
         }
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'collections/seed');
+      console.warn('Seed notice:', error);
     }
   }, [user, isAdminUnlocked]);
 
@@ -543,18 +535,20 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [isAdminUnlocked, catalogSnapshotReady, seedInitialAtelierData]);
 
+  // Standard Customer Google Sign-In (basic profile & email only; no Gmail scope)
   const signInWithGoogle = async (): Promise<User | null> => {
     setIsSigningIn(true);
     setAuthError(null);
     setAdminAuthError(null);
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      await syncUserRecordToFirestore(result.user);
-      const email = (result.user.email || '').toLowerCase().trim();
-      if (email === AUTHORIZED_ADMIN_EMAIL) {
-        await authorizeAdminWithServer(result.user);
+      const signedInUser = await signInCustomerWithGoogle();
+      if (!signedInUser) return null;
+      await syncUserRecordToFirestore(signedInUser);
+      const email = (signedInUser.email || '').toLowerCase().trim();
+      if (isAuthorizedAdminEmail(email)) {
+        await authorizeAdminWithServer(signedInUser);
       }
-      return result.user;
+      return signedInUser;
     } catch (error) {
       const msg =
         error instanceof Error ? error.message : 'Unable to complete Google Sign-In.';
@@ -565,8 +559,55 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
+  // Admin Google Sign-In with Gmail Send OAuth Scope requested in the Google Sign-In consent screen
+  const signInAdminWithGoogle = async (): Promise<{
+    user: User | null;
+    accessToken: string | null;
+  }> => {
+    setIsSigningIn(true);
+    setAuthError(null);
+    setAdminAuthError(null);
+    try {
+      const { user: signedInUser, accessToken } = await signInAdminWithGmailAccess();
+      if (accessToken) {
+        setGmailAccessToken(accessToken);
+      }
+      if (!signedInUser) {
+        return { user: null, accessToken };
+      }
+      await syncUserRecordToFirestore(signedInUser);
+      const email = (signedInUser.email || '').toLowerCase().trim();
+      if (isAuthorizedAdminEmail(email)) {
+        await authorizeAdminWithServer(signedInUser);
+      } else {
+        setAdminAuthError(
+          `Signed in as ${signedInUser.email}. Only ${AUTHORIZED_ADMIN_EMAILS.join(' or ')} are authorised to access the Shingar Dresses Admin Panel.`
+        );
+      }
+      return { user: signedInUser, accessToken };
+    } catch (error) {
+      const msg =
+        error instanceof Error
+          ? error.message
+          : 'Unable to complete Admin Google Sign-In with Gmail permission.';
+      setAuthError(msg);
+      setAdminAuthError(msg);
+      return { user: null, accessToken: null };
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  // Re-consent or connect Gmail token for Admin Email Composer
+  const connectAdminGmail = async (): Promise<string | null> => {
+    const res = await signInAdminWithGoogle();
+    return res.accessToken;
+  };
+
   const signOutUser = async (): Promise<void> => {
     sessionStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
+    clearGmailAccessToken();
+    setGmailAccessToken(null);
     setAdminServerToken(null);
     setIsServerAdminAuthenticated(false);
     setIsFirestoreAdminGranted(false);
@@ -576,6 +617,8 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const logoutAdminServerSide = async (): Promise<void> => {
     sessionStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
+    clearGmailAccessToken();
+    setGmailAccessToken(null);
     setAdminServerToken(null);
     setIsServerAdminAuthenticated(false);
     setIsFirestoreAdminGranted(false);
@@ -595,23 +638,27 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const docRef = doc(db, 'collections', docId);
 
     const basePayload = {
-      title: (item.title.trim() || 'Untitled Ensemble').slice(0, 120),
-      category: (item.category.trim() || 'Bridal Lehengas').slice(0, 80),
+      title: (item.title.trim() || 'Untitled Garment').slice(0, 120),
+      category: (
+        item.category.trim() || "Men's Readymade & Kurta-Pyjamas"
+      ).slice(0, 80),
       price: Math.max(0, Math.min(10000000, Number(item.price) || 0)),
-      fabric: (item.fabric.trim() || 'Pure Handloom Silk').slice(0, 150),
+      fabric: (item.fabric.trim() || 'Premium Woven Cotton & Silk').slice(0, 150),
       silhouette: (item.silhouette.trim() || 'Tailored Fit').slice(0, 150),
-      occasion: (item.occasion.trim() || 'Bridal & Festive').slice(0, 100),
-      description: (item.description.trim() || 'Handcrafted by Shingar Dresses.').slice(0, 1000),
+      occasion: (item.occasion.trim() || 'Festive & Casual').slice(0, 100),
+      description: (item.description.trim() || 'Showcased at Shingar Dresses, Junagadh.').slice(
+        0,
+        1000
+      ),
       imageUrl: (item.imageUrl.trim() || INITIAL_COLLECTIONS[0].imageUrl).slice(0, 900000),
       featured: Boolean(item.featured),
-      lookbookChapter: (item.lookbookChapter.trim() || '01. The Royal Sindoor Trousseau').slice(
-        0,
-        100
-      ),
+      lookbookChapter: (
+        item.lookbookChapter.trim() || '01. Royal Ethnic & Festive Kurta Edit'
+      ).slice(0, 100),
       sku: sanitizeId(item.sku.trim() || `SHG-${Date.now()}`).slice(0, 40),
       availableBranches: (
         item.availableBranches?.trim() ||
-        'Mumbai (Kala Ghoda Flagship), New Delhi (Mehrauli), Jaipur (Johari Bazaar)'
+        'Shingar Dresses (M.G. Road, Junagadh), Shingar NX (Motibaug Road, Junagadh)'
       ).slice(0, 250),
     };
 
@@ -779,11 +826,14 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     const basePayload = {
       title: (offer.title.trim() || 'Seasonal Store Offer').slice(0, 120),
-      subtitle: (offer.subtitle.trim() || 'In-Store Bridal & Festive Showcase').slice(0, 160),
+      subtitle: (
+        offer.subtitle.trim() || 'In-Store Privilege at M.G. Road & Shingar NX'
+      ).slice(0, 160),
       privilegeBadge: (offer.privilegeBadge.trim() || '15% In-Store Privilege').slice(0, 100),
       validUntil: (offer.validUntil.trim() || 'Limited Period').slice(0, 80),
       description: (
-        offer.description.trim() || 'Present this code at any Shingar Dresses showroom.'
+        offer.description.trim() ||
+        'Present this code at Shingar Dresses (M.G. Road) or Shingar NX (Motibaug Road), Junagadh.'
       ).slice(0, 800),
       posterUrl: (offer.posterUrl.trim() || INITIAL_OFFERS[0].posterUrl).slice(0, 900000),
       privilegeCode: sanitizeId(offer.privilegeCode.trim() || `SHG-${Date.now()}`).slice(0, 40),
@@ -874,10 +924,15 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
       await setDoc(docRef, {
         name: (inquiry.name.trim() || activeUser.displayName || 'Customer').slice(0, 100),
         email: (inquiry.email.trim() || activeUser.email || '').slice(0, 180),
-        phone: (inquiry.phone.trim() || '+91 98201 74500').slice(0, 30),
-        preferredDate: (inquiry.preferredDate.trim() || 'Mumbai Flagship Visit').slice(0, 80),
+        phone: (inquiry.phone.trim() || '+91 98251 21298').slice(0, 30),
+        preferredDate: (
+          inquiry.preferredDate.trim() || 'Shingar Dresses — M.G. Road Main Store'
+        ).slice(0, 80),
         dressReference: (inquiry.dressReference.trim() || 'General Store Inquiry').slice(0, 150),
-        message: (inquiry.message.trim() || 'Requesting an in-store appointment.').slice(0, 1000),
+        message: (inquiry.message.trim() || 'Requesting an in-store visit at Junagadh.').slice(
+          0,
+          1000
+        ),
         authorUid: activeUser.uid,
         createdAt: serverTimestamp(),
       });
@@ -886,23 +941,46 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  const displayedCollections: CollectionItem[] =
-    firestoreCollections.length > 0
-      ? firestoreCollections
-      : INITIAL_COLLECTIONS.map((item, idx) => ({
-          ...item,
-          id: sanitizeId(item.sku.toLowerCase() || `seed_${idx}`),
-          authorUid: 'atelier_seed',
-        }));
+  // Merge or prioritize authentic Junagadh catalog items; if Firestore only has legacy Mumbai seed IDs, include the authentic Junagadh items
+  const displayedCollections: CollectionItem[] = useMemo(() => {
+    const seedItems: CollectionItem[] = INITIAL_COLLECTIONS.map((item, idx) => ({
+      ...item,
+      id: sanitizeId(item.sku.toLowerCase() || `seed_${idx}`),
+      authorUid: 'atelier_seed',
+    }));
 
-  const displayedCategories: ClothingCategory[] =
-    firestoreCategories.length > 0
-      ? firestoreCategories
-      : INITIAL_CATEGORIES.map((cat) => ({
-          ...cat,
-          id: sanitizeId(cat.name.toLowerCase()),
-          authorUid: 'atelier_seed',
-        }));
+    if (firestoreCollections.length === 0) {
+      return seedItems;
+    }
+
+    // Filter out old placeholder Mumbai/Delhi/Jaipur demo items unless edited by admin, and ensure authentic Junagadh items appear
+    const nonLegacyFirestore = firestoreCollections.filter(
+      (item) => !item.availableBranches?.includes('Mumbai (Kala Ghoda')
+    );
+
+    if (nonLegacyFirestore.length > 0) {
+      return nonLegacyFirestore;
+    }
+
+    return seedItems;
+  }, [firestoreCollections]);
+
+  const displayedCategories: ClothingCategory[] = useMemo(() => {
+    const seedCats: ClothingCategory[] = INITIAL_CATEGORIES.map((cat) => ({
+      ...cat,
+      id: sanitizeId(cat.name.toLowerCase()),
+      authorUid: 'atelier_seed',
+    }));
+
+    if (firestoreCategories.length === 0) {
+      return seedCats;
+    }
+
+    const hasJunagadhCategories = firestoreCategories.some((c) =>
+      DEFAULT_CATEGORIES.includes(c.name)
+    );
+    return hasJunagadhCategories ? firestoreCategories : seedCats;
+  }, [firestoreCategories]);
 
   const categoryNames = useMemo(() => {
     const set = new Set<string>();
@@ -918,14 +996,22 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return Array.from(set);
   }, [displayedCategories, displayedCollections]);
 
-  const displayedOffers: OfferPoster[] =
-    firestoreOffers.length > 0
-      ? firestoreOffers
-      : INITIAL_OFFERS.map((offer, idx) => ({
-          ...offer,
-          id: sanitizeId(offer.privilegeCode.toLowerCase() || `offer_seed_${idx}`),
-          authorUid: 'atelier_seed',
-        }));
+  const displayedOffers: OfferPoster[] = useMemo(() => {
+    const seedOffers: OfferPoster[] = INITIAL_OFFERS.map((offer, idx) => ({
+      ...offer,
+      id: sanitizeId(offer.privilegeCode.toLowerCase() || `offer_seed_${idx}`),
+      authorUid: 'atelier_seed',
+    }));
+
+    if (firestoreOffers.length === 0) {
+      return seedOffers;
+    }
+
+    const nonLegacyOffers = firestoreOffers.filter(
+      (o) => !o.description.includes('Mumbai, New Delhi')
+    );
+    return nonLegacyOffers.length > 0 ? nonLegacyOffers : seedOffers;
+  }, [firestoreOffers]);
 
   return (
     <AtelierContext.Provider
@@ -935,6 +1021,9 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
         isSigningIn,
         authError,
         signInWithGoogle,
+        signInAdminWithGoogle,
+        connectAdminGmail,
+        gmailAccessToken,
         signOutUser,
         isServerAdminAuthenticated,
         isFirestoreAdminGranted,

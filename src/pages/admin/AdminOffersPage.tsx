@@ -155,7 +155,7 @@ export const AdminOffersPage: React.FC = () => {
   return (
     <div className="space-y-12">
       <div>
-        <p className="text-xs text-rose-900 uppercase tracking-widest font-medium mb-1">
+        <p className="text-xs text-stone-600 uppercase tracking-widest font-medium mb-1">
           Promotions &amp; Seasonal Campaigns
         </p>
         <h1 className="font-serif text-3xl sm:text-4xl text-stone-950">
@@ -173,7 +173,7 @@ export const AdminOffersPage: React.FC = () => {
       )}
 
       {errorMessage && (
-        <div className="p-4 bg-rose-50 border border-rose-200 text-xs text-rose-900 flex items-center justify-between">
+        <div className="p-4 bg-stone-100 border border-stone-300 text-xs text-stone-900 flex items-center justify-between">
           <span>{errorMessage}</span>
           <button type="button" onClick={() => setErrorMessage(null)}>
             <X className="w-4 h-4" />
@@ -325,7 +325,7 @@ export const AdminOffersPage: React.FC = () => {
                 type="checkbox"
                 checked={active}
                 onChange={(e) => setActive(e.target.checked)}
-                className="w-4 h-4 accent-rose-900"
+                className="w-4 h-4 accent-stone-950"
               />
               <label
                 htmlFor="active-offer-toggle"
@@ -339,7 +339,7 @@ export const AdminOffersPage: React.FC = () => {
           <button
             type="submit"
             disabled={saving}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-stone-950 text-white text-xs font-medium hover:bg-rose-900 transition-colors cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-stone-950 text-white text-xs font-medium hover:bg-stone-800 transition-colors cursor-pointer disabled:opacity-50"
           >
             {editingId ? (
               <>
@@ -382,7 +382,7 @@ export const AdminOffersPage: React.FC = () => {
               <div className="p-5 space-y-3 flex-1 flex flex-col justify-between">
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-rose-900 font-medium">
+                    <span className="text-stone-800 font-semibold">
                       {offer.privilegeBadge}
                     </span>
                     <span className="font-mono text-stone-500">
@@ -409,7 +409,7 @@ export const AdminOffersPage: React.FC = () => {
                     type="button"
                     onClick={() => handleDelete(offer)}
                     disabled={deletingId === offer.id}
-                    className="py-2 px-3 border border-rose-200 text-xs font-medium text-rose-900 hover:bg-rose-50 inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    className="py-2 px-3 border border-stone-300 text-xs font-medium text-stone-800 hover:bg-stone-100 inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>{deletingId === offer.id ? 'Deleting...' : 'Delete'}</span>

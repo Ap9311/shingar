@@ -171,7 +171,7 @@ export const CollectionPage: React.FC = () => {
                       <span className="font-mono">{item.sku}</span>
                     </div>
 
-                    <h2 className="font-serif text-2xl text-stone-950 group-hover:text-rose-900 transition-colors">
+                    <h2 className="font-serif text-2xl text-stone-950 group-hover:text-stone-600 transition-colors">
                       {item.title}
                     </h2>
 
@@ -193,7 +193,7 @@ export const CollectionPage: React.FC = () => {
                       <span className="truncate max-w-[210px]">
                         In-Store: {item.availableBranches || 'All Flagship Showrooms'}
                       </span>
-                      <span className="text-rose-900 font-medium whitespace-nowrap">
+                      <span className="text-stone-900 font-medium whitespace-nowrap">
                         View Details →
                       </span>
                     </div>
@@ -248,7 +248,7 @@ export const CollectionPage: React.FC = () => {
                   <h2 className="font-serif text-3xl text-stone-950 leading-tight">
                     {selectedItem.title}
                   </h2>
-                  <p className="mt-2 text-lg font-mono tabular-nums font-medium text-rose-900">
+                  <p className="mt-2 text-lg font-mono tabular-nums font-medium text-stone-900">
                     {selectedItem.price > 0
                       ? `₹${selectedItem.price.toLocaleString('en-IN')} (Indicative Showroom Price)`
                       : 'Price on Request at Showroom'}
@@ -282,7 +282,7 @@ export const CollectionPage: React.FC = () => {
                     <dt className="text-stone-500">Available At</dt>
                     <dd className="col-span-2 text-stone-900 font-medium">
                       {selectedItem.availableBranches ||
-                        'Mumbai, New Delhi, Jaipur & Surat Showrooms'}
+                        'Shingar Dresses (M.G. Road) & Shingar NX (Motibaug Road), Junagadh'}
                     </dd>
                   </div>
                 </dl>
@@ -298,7 +298,7 @@ export const CollectionPage: React.FC = () => {
                     to={`/contact?dress=${encodeURIComponent(
                       `${selectedItem.title} (${selectedItem.sku})`
                     )}`}
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 bg-stone-950 text-white text-xs font-medium hover:bg-rose-900 transition-colors whitespace-nowrap"
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 bg-stone-950 text-white text-xs font-medium hover:bg-stone-800 transition-colors whitespace-nowrap"
                   >
                     <span>Inquire About This Piece</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -309,7 +309,7 @@ export const CollectionPage: React.FC = () => {
                     rel="noopener noreferrer"
                     className="inline-flex items-center justify-center gap-1.5 px-4 py-3 border border-stone-300 text-stone-900 text-xs font-medium hover:border-stone-900 transition-colors whitespace-nowrap"
                   >
-                    <MapPin className="w-3.5 h-3.5 text-rose-900" />
+                    <MapPin className="w-3.5 h-3.5 text-stone-700" />
                     <span>Store Directions</span>
                     <ExternalLink className="w-3 h-3" />
                   </a>

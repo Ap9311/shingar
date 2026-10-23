@@ -1,8 +1,14 @@
 import crypto from 'crypto';
 
-const AUTHORIZED_ADMIN_EMAIL = (
-  process.env.AUTHORIZED_ADMIN_EMAIL || 'akshatpopat9311@gmail.com'
-).toLowerCase();
+const AUTHORIZED_ADMIN_EMAILS = [
+  'akshatpopat9311@gmail.com',
+  'support.obsidian@gmail.com',
+];
+
+function isAuthorizedAdminEmail(email: string): boolean {
+  return AUTHORIZED_ADMIN_EMAILS.includes(String(email || '').toLowerCase().trim());
+}
+
 const SESSION_SECRET =
   process.env.ADMIN_SESSION_SECRET || 'shingar-dresses-admin-hmac-secret-2026';
 const FIREBASE_PROJECT_ID = 'obsidian-507319';
@@ -68,11 +74,11 @@ export default function handler(req: any, res: any) {
     return;
   }
 
-  if (verifiedUser.email !== AUTHORIZED_ADMIN_EMAIL) {
+  if (!isAuthorizedAdminEmail(verifiedUser.email)) {
     res.status(403).json({
       authorized: false,
       email: verifiedUser.email,
-      error: `Access denied. Only ${AUTHORIZED_ADMIN_EMAIL} is authorised to access the Shingar Dresses Admin Panel.`,
+      error: `Access denied. Only ${AUTHORIZED_ADMIN_EMAILS.join(' or ')} are authorised to access the Shingar Dresses Admin Panel.`,
     });
     return;
   }

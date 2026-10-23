@@ -6,11 +6,11 @@
 export type DressCategory = string;
 
 export const DEFAULT_CATEGORIES: string[] = [
-  'Bridal Lehengas',
-  'Royal Anarkalis',
-  'Handloom Sarees',
-  'Indo-Western Couture',
-  'Festive Shararas',
+  "Men's Readymade & Kurta-Pyjamas",
+  'Trending Streetwear (Shingar NX)',
+  "Kids' Wear & Fancy Dresses",
+  'Festive & Traditional Clothing',
+  'School Uniforms',
 ];
 
 export interface ClothingCategory {
@@ -96,11 +96,4 @@ export interface EmailAttachment {
   mimeType: string;
   sizeBytes: number;
   contentBase64: string;
-}
-
-export interface EmailServiceStatus {
-  configured: boolean;
-  senderEmail: string;
-  provider: string;
-  statusMessage: string;
 }
