@@ -33,8 +33,6 @@ import {
   signInAdminWithGmailAccess,
   getGmailAccessToken,
   clearGmailAccessToken,
-  handleFirestoreError,
-  OperationType,
 } from '../firebase';
 import {
   CollectionItem,
@@ -125,6 +123,50 @@ function sanitizeId(raw: string): string {
   return raw.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 120) || `id_${Date.now()}`;
 }
 
+async function writeDocWithFallback(
+  collectionName: string,
+  docId: string,
+  payload: Record<string, unknown>,
+  preserveCreatedAt = true
+): Promise<void> {
+  const docRef = doc(db, collectionName, docId);
+  const existingSnap = await getDoc(docRef);
+  if (existingSnap.exists()) {
+    const existingData = existingSnap.data();
+    if (preserveCreatedAt && existingData.createdAt) {
+      await setDoc(docRef, {
+        ...payload,
+        createdAt: existingData.createdAt,
+        updatedAt: serverTimestamp(),
+      });
+    } else {
+      await deleteDoc(docRef);
+      await setDoc(docRef, {
+        ...payload,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+  } else {
+    await setDoc(docRef, {
+      ...payload,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+}
+
+async function deleteDocWithFallback(
+  collectionName: string,
+  docId: string
+): Promise<void> {
+  const primaryRef = doc(db, collectionName, docId);
+  const snap = await getDoc(primaryRef);
+  if (snap.exists()) {
+    await deleteDoc(primaryRef);
+  }
+}
+
 export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
@@ -151,18 +193,18 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [catalogSnapshotReady, setCatalogSnapshotReady] = useState(false);
   const hasAutoSeededRef = useRef(false);
 
-  // Sync authenticated Google customer to `/users/{uid}` directory
+  // Sync authenticated Google customer to `/users/{uid}` directory in database `shingar`
   const syncUserRecordToFirestore = useCallback(async (firebaseUser: User) => {
     if (!firebaseUser.emailVerified) return;
     const uid = sanitizeId(firebaseUser.uid);
-    const userRef = doc(db, 'users', uid);
-    const displayName = (firebaseUser.displayName || 'Valued Customer').slice(0, 120);
+    const displayName = (firebaseUser.displayName || 'Customer').slice(0, 120);
     const email = (firebaseUser.email || '').slice(0, 180);
     const photoURL = (firebaseUser.photoURL || '').slice(0, 500);
 
     if (email.length < 3) return;
 
     try {
+      const userRef = doc(db, 'users', uid);
       const existingSnap = await getDoc(userRef);
       if (!existingSnap.exists()) {
         await setDoc(userRef, {
@@ -184,9 +226,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
           lastLoginAt: serverTimestamp(),
         });
       }
-    } catch (error) {
-      console.warn('Customer profile sync notice:', error);
-    }
+    } catch {}
   }, []);
 
   // Authorize admin via Firebase ID Token against `/api/admin/authorize` and Firestore `/admins/{uid}`
@@ -208,7 +248,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setAdminServerToken(null);
         sessionStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
         setAdminAuthError(
-          `Signed in as ${activeUser.email}. Only ${AUTHORIZED_ADMIN_EMAILS.join(' or ')} are authorised to access the Shingar Dresses Admin Panel.`
+          `Signed in as ${activeUser.email}. Only ${AUTHORIZED_ADMIN_EMAILS.join(' or ')} can open the Admin Panel.`
         );
         return false;
       }
@@ -233,7 +273,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
           setIsFirestoreAdminGranted(false);
           setAdminAuthError(
             data?.error ||
-              `Server authorization denied. Only ${AUTHORIZED_ADMIN_EMAILS.join(' or ')} are permitted.`
+              `Access denied. Only ${AUTHORIZED_ADMIN_EMAILS.join(' or ')} are allowed.`
           );
           return false;
         }
@@ -242,7 +282,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setAdminServerToken(data.token);
         setIsServerAdminAuthenticated(true);
 
-        // Ensure `/admins/{uid}` record exists in Firestore
+        // Ensure `/admins/{uid}` record exists in `shingar` Firestore database
         try {
           const adminDocRef = doc(db, 'admins', uid);
           const snap = await getDoc(adminDocRef);
@@ -254,17 +294,13 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
               grantedAt: serverTimestamp(),
             });
           }
-        } catch (err) {
-          console.warn('Firestore admin record sync notice:', err);
-        }
+        } catch {}
 
         setIsFirestoreAdminGranted(true);
         return true;
       } catch (err) {
         setAdminAuthError(
-          err instanceof Error
-            ? err.message
-            : 'Unable to verify administrator token with server.'
+          err instanceof Error ? err.message : 'Could not verify admin login.'
         );
         return false;
       } finally {
@@ -274,16 +310,16 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
     [user]
   );
 
-  // Listen to Firebase Auth state
+  // Listen to shingar-dresses Firebase Auth
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
+    const unsub = onAuthStateChanged(auth, async (resolved) => {
+      setUser(resolved);
       setAuthReady(true);
-      if (currentUser) {
-        await syncUserRecordToFirestore(currentUser);
-        const email = (currentUser.email || '').toLowerCase().trim();
+      if (resolved) {
+        await syncUserRecordToFirestore(resolved);
+        const email = (resolved.email || '').toLowerCase().trim();
         if (isAuthorizedAdminEmail(email)) {
-          await authorizeAdminWithServer(currentUser);
+          await authorizeAdminWithServer(resolved);
         } else {
           setIsServerAdminAuthenticated(false);
           setIsFirestoreAdminGranted(false);
@@ -300,111 +336,112 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setAdminAuthError(null);
       }
     });
-    return () => unsubscribe();
+
+    return () => unsub();
   }, [syncUserRecordToFirestore, authorizeAdminWithServer]);
 
-  // Public real-time listeners for `/collections`, `/categories`, and `/offers`
-  // Never throw uncaught errors on public listeners so signed-in customers can always browse all pages smoothly
+  // Real-time listeners for `/collections`, `/categories`, and `/offers` in `shingar` database
   useEffect(() => {
     if (!authReady) return;
 
-    const unsubCollections = onSnapshot(
+    const mapCollectionDocs = (docs: any[]): CollectionItem[] =>
+      docs.map((docSnap) => {
+        const d = docSnap.data();
+        const sku = String(d.sku || 'SHG-001');
+        return {
+          id: docSnap.id,
+          title: String(d.title || ''),
+          category: (d.category as DressCategory) || "Men's Readymade & Kurta-Pyjamas",
+          price: Number(d.price ?? 0),
+          fabric: String(d.fabric || ''),
+          silhouette: String(d.silhouette || ''),
+          occasion: String(d.occasion || ''),
+          description: String(d.description || ''),
+          imageUrl: resolveFashionImageUrl(String(d.imageUrl || ''), sku),
+          featured: Boolean(d.featured),
+          lookbookChapter: String(
+            d.lookbookChapter || '01. Royal Kurta-Pyjama & Menswear Edit'
+          ),
+          sku,
+          availableBranches: String(
+            d.availableBranches ||
+              'Main Store (M.G. Road) & Shingar NX (Motibaug Road)'
+          ),
+          authorUid: String(d.authorUid || ''),
+          createdAt: d.createdAt,
+          updatedAt: d.updatedAt,
+        };
+      });
+
+    const mapCategoryDocs = (docs: any[]): ClothingCategory[] =>
+      docs
+        .map((docSnap) => {
+          const d = docSnap.data();
+          return {
+            id: docSnap.id,
+            name: String(d.name || ''),
+            description: String(d.description || ''),
+            order: Number(d.order ?? 10),
+            authorUid: String(d.authorUid || ''),
+            createdAt: d.createdAt,
+            updatedAt: d.updatedAt,
+          };
+        })
+        .sort((a, b) => a.order - b.order);
+
+    const mapOfferDocs = (docs: any[]): OfferPoster[] =>
+      docs.map((docSnap) => {
+        const d = docSnap.data();
+        const privilegeCode = String(d.privilegeCode || docSnap.id);
+        return {
+          id: docSnap.id,
+          title: String(d.title || ''),
+          subtitle: String(d.subtitle || ''),
+          privilegeBadge: String(d.privilegeBadge || ''),
+          validUntil: String(d.validUntil || ''),
+          description: String(d.description || ''),
+          posterUrl: resolveFashionImageUrl(String(d.posterUrl || ''), privilegeCode),
+          privilegeCode,
+          active: Boolean(d.active),
+          authorUid: String(d.authorUid || ''),
+          createdAt: d.createdAt,
+          updatedAt: d.updatedAt,
+        };
+      });
+
+    const unsubPrimaryCollections = onSnapshot(
       collection(db, 'collections'),
       (snapshot) => {
-        const items: CollectionItem[] = snapshot.docs.map((docSnap) => {
-          const d = docSnap.data();
-          const sku = String(d.sku || 'SHG-001');
-          return {
-            id: docSnap.id,
-            title: String(d.title || ''),
-            category: (d.category as DressCategory) || "Men's Readymade & Kurta-Pyjamas",
-            price: Number(d.price ?? 0),
-            fabric: String(d.fabric || ''),
-            silhouette: String(d.silhouette || ''),
-            occasion: String(d.occasion || ''),
-            description: String(d.description || ''),
-            imageUrl: resolveFashionImageUrl(String(d.imageUrl || ''), sku),
-            featured: Boolean(d.featured),
-            lookbookChapter: String(
-              d.lookbookChapter || '01. Royal Ethnic & Festive Kurta Edit'
-            ),
-            sku,
-            availableBranches: String(
-              d.availableBranches ||
-                'Shingar Dresses (M.G. Road, Junagadh), Shingar NX (Motibaug Road, Junagadh)'
-            ),
-            authorUid: String(d.authorUid || ''),
-            createdAt: d.createdAt,
-            updatedAt: d.updatedAt,
-          };
-        });
-        setFirestoreCollections(items);
+        setFirestoreCollections(mapCollectionDocs(snapshot.docs));
         setIsLoadingCatalog(false);
         setCatalogSnapshotReady(true);
       },
-      (error) => {
-        console.warn('Collections snapshot fallback active:', error);
+      () => {
         setIsLoadingCatalog(false);
         setCatalogSnapshotReady(true);
       }
     );
 
-    const unsubCategories = onSnapshot(
+    const unsubPrimaryCategories = onSnapshot(
       collection(db, 'categories'),
       (snapshot) => {
-        const cats: ClothingCategory[] = snapshot.docs
-          .map((docSnap) => {
-            const d = docSnap.data();
-            return {
-              id: docSnap.id,
-              name: String(d.name || ''),
-              description: String(d.description || ''),
-              order: Number(d.order ?? 10),
-              authorUid: String(d.authorUid || ''),
-              createdAt: d.createdAt,
-              updatedAt: d.updatedAt,
-            };
-          })
-          .sort((a, b) => a.order - b.order);
-        setFirestoreCategories(cats);
+        setFirestoreCategories(mapCategoryDocs(snapshot.docs));
       },
-      (error) => {
-        console.warn('Categories snapshot fallback active:', error);
-      }
+      () => {}
     );
 
-    const unsubOffers = onSnapshot(
+    const unsubPrimaryOffers = onSnapshot(
       collection(db, 'offers'),
       (snapshot) => {
-        const items: OfferPoster[] = snapshot.docs.map((docSnap) => {
-          const d = docSnap.data();
-          const privilegeCode = String(d.privilegeCode || '');
-          return {
-            id: docSnap.id,
-            title: String(d.title || ''),
-            subtitle: String(d.subtitle || ''),
-            privilegeBadge: String(d.privilegeBadge || ''),
-            validUntil: String(d.validUntil || ''),
-            description: String(d.description || ''),
-            posterUrl: resolveFashionImageUrl(String(d.posterUrl || ''), privilegeCode),
-            privilegeCode,
-            active: Boolean(d.active),
-            authorUid: String(d.authorUid || ''),
-            createdAt: d.createdAt,
-            updatedAt: d.updatedAt,
-          };
-        });
-        setFirestoreOffers(items);
+        setFirestoreOffers(mapOfferDocs(snapshot.docs));
       },
-      (error) => {
-        console.warn('Offers snapshot fallback active:', error);
-      }
+      () => {}
     );
 
     return () => {
-      unsubCollections();
-      unsubCategories();
-      unsubOffers();
+      unsubPrimaryCollections();
+      unsubPrimaryCategories();
+      unsubPrimaryOffers();
     };
   }, [authReady]);
 
@@ -415,7 +452,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
       isFirestoreAdminGranted
   );
 
-  // Admin-only real-time listener for `/users` and `/inquiries`
+  // Admin-only real-time listener for `/users` and `/inquiries` in `shingar` database
   useEffect(() => {
     if (!authReady || !isAdminUnlocked) {
       setUsersDirectory([]);
@@ -423,10 +460,10 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    const unsubUsers = onSnapshot(
+    const unsubPrimaryUsers = onSnapshot(
       collection(db, 'users'),
       (snapshot) => {
-        const list: UserDirectoryRecord[] = snapshot.docs.map((docSnap) => {
+        const usersList = snapshot.docs.map((docSnap) => {
           const d = docSnap.data();
           return {
             uid: String(d.uid || docSnap.id),
@@ -437,17 +474,15 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
             lastLoginAt: d.lastLoginAt,
           };
         });
-        setUsersDirectory(list);
+        setUsersDirectory(usersList);
       },
-      (error) => {
-        console.warn('Admin users listener notice:', error);
-      }
+      () => {}
     );
 
-    const unsubInquiries = onSnapshot(
+    const unsubPrimaryInquiries = onSnapshot(
       collection(db, 'inquiries'),
       (snapshot) => {
-        const list: AtelierInquiry[] = snapshot.docs.map((docSnap) => {
+        const inquiriesList = snapshot.docs.map((docSnap) => {
           const d = docSnap.data();
           return {
             id: docSnap.id,
@@ -461,16 +496,14 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
             createdAt: d.createdAt,
           };
         });
-        setInquiries(list);
+        setInquiries(inquiriesList);
       },
-      (error) => {
-        console.warn('Admin inquiries listener notice:', error);
-      }
+      () => {}
     );
 
     return () => {
-      unsubUsers();
-      unsubInquiries();
+      unsubPrimaryUsers();
+      unsubPrimaryInquiries();
     };
   }, [authReady, isAdminUnlocked]);
 
@@ -478,64 +511,42 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const seedInitialAtelierData = useCallback(async () => {
     if (!user || !isAdminUnlocked) return;
 
-    try {
-      for (let i = 0; i < INITIAL_CATEGORIES.length; i++) {
-        const cat = INITIAL_CATEGORIES[i];
-        const docId = sanitizeId(cat.name.toLowerCase());
-        const docRef = doc(db, 'categories', docId);
-        const snap = await getDoc(docRef);
-        if (!snap.exists()) {
-          await setDoc(docRef, {
-            ...cat,
-            authorUid: user.uid,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          });
-        }
-      }
+    for (let i = 0; i < INITIAL_CATEGORIES.length; i++) {
+      const cat = INITIAL_CATEGORIES[i];
+      const docId = sanitizeId(cat.name.toLowerCase());
+      await writeDocWithFallback('categories', docId, {
+        ...cat,
+        authorUid: user.uid,
+      }).catch(() => {});
+    }
 
-      for (let i = 0; i < INITIAL_COLLECTIONS.length; i++) {
-        const item = INITIAL_COLLECTIONS[i];
-        const docId = sanitizeId(item.sku.toLowerCase());
-        const docRef = doc(db, 'collections', docId);
-        const snap = await getDoc(docRef);
-        if (!snap.exists()) {
-          await setDoc(docRef, {
-            ...item,
-            authorUid: user.uid,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          });
-        }
-      }
+    for (let i = 0; i < INITIAL_COLLECTIONS.length; i++) {
+      const item = INITIAL_COLLECTIONS[i];
+      const docId = sanitizeId(item.sku.toLowerCase());
+      await writeDocWithFallback('collections', docId, {
+        ...item,
+        authorUid: user.uid,
+      }).catch(() => {});
+    }
 
-      for (let i = 0; i < INITIAL_OFFERS.length; i++) {
-        const offer = INITIAL_OFFERS[i];
-        const docId = sanitizeId(offer.privilegeCode.toLowerCase());
-        const docRef = doc(db, 'offers', docId);
-        const snap = await getDoc(docRef);
-        if (!snap.exists()) {
-          await setDoc(docRef, {
-            ...offer,
-            authorUid: user.uid,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          });
-        }
-      }
-    } catch (error) {
-      console.warn('Seed notice:', error);
+    for (let i = 0; i < INITIAL_OFFERS.length; i++) {
+      const offer = INITIAL_OFFERS[i];
+      const docId = sanitizeId(offer.privilegeCode.toLowerCase());
+      await writeDocWithFallback('offers', docId, {
+        ...offer,
+        authorUid: user.uid,
+      }).catch(() => {});
     }
   }, [user, isAdminUnlocked]);
 
   useEffect(() => {
     if (isAdminUnlocked && catalogSnapshotReady && !hasAutoSeededRef.current) {
       hasAutoSeededRef.current = true;
-      seedInitialAtelierData().catch((err) => console.warn('Initial seed notice:', err));
+      seedInitialAtelierData().catch(() => {});
     }
   }, [isAdminUnlocked, catalogSnapshotReady, seedInitialAtelierData]);
 
-  // Standard Customer Google Sign-In (basic profile & email only; no Gmail scope)
+  // Standard Customer Google Sign-In
   const signInWithGoogle = async (): Promise<User | null> => {
     setIsSigningIn(true);
     setAuthError(null);
@@ -543,6 +554,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const signedInUser = await signInCustomerWithGoogle();
       if (!signedInUser) return null;
+      setUser(signedInUser);
       await syncUserRecordToFirestore(signedInUser);
       const email = (signedInUser.email || '').toLowerCase().trim();
       if (isAuthorizedAdminEmail(email)) {
@@ -551,7 +563,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return signedInUser;
     } catch (error) {
       const msg =
-        error instanceof Error ? error.message : 'Unable to complete Google Sign-In.';
+        error instanceof Error ? error.message : 'Could not sign in with Google.';
       setAuthError(msg);
       return null;
     } finally {
@@ -559,7 +571,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  // Admin Google Sign-In with Gmail Send OAuth Scope requested in the Google Sign-In consent screen
+  // Admin Google Sign-In with Gmail Send OAuth Scope
   const signInAdminWithGoogle = async (): Promise<{
     user: User | null;
     accessToken: string | null;
@@ -575,21 +587,20 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (!signedInUser) {
         return { user: null, accessToken };
       }
+      setUser(signedInUser);
       await syncUserRecordToFirestore(signedInUser);
       const email = (signedInUser.email || '').toLowerCase().trim();
       if (isAuthorizedAdminEmail(email)) {
         await authorizeAdminWithServer(signedInUser);
       } else {
         setAdminAuthError(
-          `Signed in as ${signedInUser.email}. Only ${AUTHORIZED_ADMIN_EMAILS.join(' or ')} are authorised to access the Shingar Dresses Admin Panel.`
+          `Signed in as ${signedInUser.email}. Only ${AUTHORIZED_ADMIN_EMAILS.join(' or ')} can access Admin.`
         );
       }
       return { user: signedInUser, accessToken };
     } catch (error) {
       const msg =
-        error instanceof Error
-          ? error.message
-          : 'Unable to complete Admin Google Sign-In with Gmail permission.';
+        error instanceof Error ? error.message : 'Could not sign in with Google.';
       setAuthError(msg);
       setAdminAuthError(msg);
       return { user: null, accessToken: null };
@@ -598,7 +609,6 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  // Re-consent or connect Gmail token for Admin Email Composer
   const connectAdminGmail = async (): Promise<string | null> => {
     const res = await signInAdminWithGoogle();
     return res.accessToken;
@@ -613,6 +623,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setIsFirestoreAdminGranted(false);
     setAdminAuthError(null);
     await firebaseSignOut(auth);
+    setUser(null);
   };
 
   const logoutAdminServerSide = async (): Promise<void> => {
@@ -626,6 +637,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
       await fetch('/api/admin/logout', { method: 'POST' });
     } catch {}
     await firebaseSignOut(auth);
+    setUser(null);
   };
 
   // Create or update a Collection Item
@@ -633,100 +645,40 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
     item: Omit<CollectionItem, 'id' | 'authorUid' | 'createdAt' | 'updatedAt'>,
     existingId?: string
   ): Promise<void> => {
-    if (!user) throw new Error('Please sign in with Google to save changes.');
+    if (!user) throw new Error('Please sign in with Google first.');
     const docId = existingId ? sanitizeId(existingId) : sanitizeId(`dress_${Date.now()}`);
-    const docRef = doc(db, 'collections', docId);
 
     const basePayload = {
-      title: (item.title.trim() || 'Untitled Garment').slice(0, 120),
+      title: (item.title.trim() || 'New Cloth').slice(0, 120),
       category: (
         item.category.trim() || "Men's Readymade & Kurta-Pyjamas"
       ).slice(0, 80),
       price: Math.max(0, Math.min(10000000, Number(item.price) || 0)),
-      fabric: (item.fabric.trim() || 'Premium Woven Cotton & Silk').slice(0, 150),
-      silhouette: (item.silhouette.trim() || 'Tailored Fit').slice(0, 150),
-      occasion: (item.occasion.trim() || 'Festive & Casual').slice(0, 100),
-      description: (item.description.trim() || 'Showcased at Shingar Dresses, Junagadh.').slice(
-        0,
-        1000
-      ),
+      fabric: (item.fabric.trim() || 'Cotton & Silk').slice(0, 150),
+      silhouette: (item.silhouette.trim() || 'Regular Fit').slice(0, 150),
+      occasion: (item.occasion.trim() || 'Festive & Daily Wear').slice(0, 100),
+      description: (
+        item.description.trim() || 'Available at Shingar Dresses, Junagadh.'
+      ).slice(0, 1000),
       imageUrl: (item.imageUrl.trim() || INITIAL_COLLECTIONS[0].imageUrl).slice(0, 900000),
       featured: Boolean(item.featured),
       lookbookChapter: (
-        item.lookbookChapter.trim() || '01. Royal Ethnic & Festive Kurta Edit'
+        item.lookbookChapter.trim() || '01. Men’s Ethnic & Kurta-Pyjamas'
       ).slice(0, 100),
-      sku: sanitizeId(item.sku.trim() || `SHG-${Date.now()}`).slice(0, 40),
+      sku: sanitizeId(item.sku.trim() || `SHG-${Date.now().toString().slice(-4)}`).slice(0, 40),
       availableBranches: (
         item.availableBranches?.trim() ||
-        'Shingar Dresses (M.G. Road, Junagadh), Shingar NX (Motibaug Road, Junagadh)'
+        'Main Store (M.G. Road) & Shingar NX (Motibaug Road)'
       ).slice(0, 250),
+      authorUid: user.uid,
     };
 
-    try {
-      const existingSnap = await getDoc(docRef);
-      if (existingSnap.exists()) {
-        const existingData = existingSnap.data();
-        if (existingData.createdAt) {
-          await setDoc(docRef, {
-            ...basePayload,
-            authorUid: user.uid,
-            createdAt: existingData.createdAt,
-            updatedAt: serverTimestamp(),
-          });
-        } else {
-          await deleteDoc(docRef);
-          await setDoc(docRef, {
-            ...basePayload,
-            authorUid: user.uid,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          });
-        }
-      } else {
-        await setDoc(docRef, {
-          ...basePayload,
-          authorUid: user.uid,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-      }
-    } catch (error) {
-      handleFirestoreError(
-        error,
-        existingId ? OperationType.UPDATE : OperationType.CREATE,
-        `collections/${docId}`
-      );
-    }
+    await writeDocWithFallback('collections', docId, basePayload);
   };
 
   const deleteCollectionItem = async (id: string): Promise<void> => {
     const docId = sanitizeId(id);
-    const docRef = doc(db, 'collections', docId);
-    try {
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        await deleteDoc(docRef);
-      } else if (user) {
-        hasAutoSeededRef.current = true;
-        for (const item of INITIAL_COLLECTIONS) {
-          const seedId = sanitizeId(item.sku.toLowerCase());
-          if (seedId !== docId) {
-            const seedRef = doc(db, 'collections', seedId);
-            const seedSnap = await getDoc(seedRef);
-            if (!seedSnap.exists()) {
-              await setDoc(seedRef, {
-                ...item,
-                authorUid: user.uid,
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-              });
-            }
-          }
-        }
-      }
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `collections/${docId}`);
-    }
+    await deleteDocWithFallback('collections', docId);
   };
 
   // Create or update a Clothing Category
@@ -734,177 +686,62 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
     category: { name: string; description: string; order?: number },
     existingId?: string
   ): Promise<void> => {
-    if (!user) throw new Error('Please sign in with Google to manage categories.');
+    if (!user) throw new Error('Please sign in with Google first.');
     const cleanName = category.name.trim().slice(0, 80);
-    if (cleanName.length < 2) throw new Error('Category name must be at least 2 characters.');
+    if (cleanName.length < 2) throw new Error('Please enter a category name.');
 
     const docId = existingId
       ? sanitizeId(existingId)
       : sanitizeId(cleanName.toLowerCase());
-    const docRef = doc(db, 'categories', docId);
 
     const basePayload = {
       name: cleanName,
       description: (category.description || '').trim().slice(0, 300),
       order: Math.max(0, Math.min(10000, Number(category.order ?? 10))),
+      authorUid: user.uid,
     };
 
-    try {
-      const existingSnap = await getDoc(docRef);
-      if (existingSnap.exists()) {
-        const existingData = existingSnap.data();
-        if (existingData.createdAt) {
-          await setDoc(docRef, {
-            ...basePayload,
-            authorUid: user.uid,
-            createdAt: existingData.createdAt,
-            updatedAt: serverTimestamp(),
-          });
-        } else {
-          await deleteDoc(docRef);
-          await setDoc(docRef, {
-            ...basePayload,
-            authorUid: user.uid,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          });
-        }
-      } else {
-        await setDoc(docRef, {
-          ...basePayload,
-          authorUid: user.uid,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-      }
-    } catch (error) {
-      handleFirestoreError(
-        error,
-        existingId ? OperationType.UPDATE : OperationType.CREATE,
-        `categories/${docId}`
-      );
-    }
+    await writeDocWithFallback('categories', docId, basePayload);
   };
 
   const deleteCategory = async (id: string): Promise<void> => {
     const docId = sanitizeId(id);
-    const docRef = doc(db, 'categories', docId);
-    try {
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        await deleteDoc(docRef);
-      } else if (user) {
-        for (const cat of INITIAL_CATEGORIES) {
-          const seedId = sanitizeId(cat.name.toLowerCase());
-          if (seedId !== docId) {
-            const seedRef = doc(db, 'categories', seedId);
-            const seedSnap = await getDoc(seedRef);
-            if (!seedSnap.exists()) {
-              await setDoc(seedRef, {
-                ...cat,
-                authorUid: user.uid,
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-              });
-            }
-          }
-        }
-      }
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `categories/${docId}`);
-    }
+    await deleteDocWithFallback('categories', docId);
   };
 
-  // Create or update an Offer Poster
+  // Create or update an Offer Poster (In-Store Sale Only — No Coupon Code Needed)
   const saveOfferPoster = async (
     offer: Omit<OfferPoster, 'id' | 'authorUid' | 'createdAt' | 'updatedAt'>,
     existingId?: string
   ): Promise<void> => {
-    if (!user) throw new Error('Please sign in with Google to save changes.');
+    if (!user) throw new Error('Please sign in with Google first.');
     const docId = existingId ? sanitizeId(existingId) : sanitizeId(`offer_${Date.now()}`);
-    const docRef = doc(db, 'offers', docId);
 
     const basePayload = {
-      title: (offer.title.trim() || 'Seasonal Store Offer').slice(0, 120),
+      title: (offer.title.trim() || 'Store Sale Offer').slice(0, 120),
       subtitle: (
-        offer.subtitle.trim() || 'In-Store Privilege at M.G. Road & Shingar NX'
+        offer.subtitle.trim() || 'Visit our M.G. Road or Motibaug Road shop in Junagadh'
       ).slice(0, 160),
-      privilegeBadge: (offer.privilegeBadge.trim() || '15% In-Store Privilege').slice(0, 100),
-      validUntil: (offer.validUntil.trim() || 'Limited Period').slice(0, 80),
+      privilegeBadge: (offer.privilegeBadge.trim() || 'In-Store Sale').slice(0, 100),
+      validUntil: (offer.validUntil.trim() || 'Available in Shop').slice(0, 80),
       description: (
         offer.description.trim() ||
-        'Present this code at Shingar Dresses (M.G. Road) or Shingar NX (Motibaug Road), Junagadh.'
+        'Visit our Main Store on M.G. Road or Shingar NX on Motibaug Road, Junagadh to buy directly in store.'
       ).slice(0, 800),
       posterUrl: (offer.posterUrl.trim() || INITIAL_OFFERS[0].posterUrl).slice(0, 900000),
-      privilegeCode: sanitizeId(offer.privilegeCode.trim() || `SHG-${Date.now()}`).slice(0, 40),
+      privilegeCode: sanitizeId(
+        offer.privilegeCode.trim() || docId || `SALE-${Date.now().toString().slice(-4)}`
+      ).slice(0, 40),
       active: Boolean(offer.active),
+      authorUid: user.uid,
     };
 
-    try {
-      const existingSnap = await getDoc(docRef);
-      if (existingSnap.exists()) {
-        const existingData = existingSnap.data();
-        if (existingData.createdAt) {
-          await setDoc(docRef, {
-            ...basePayload,
-            authorUid: user.uid,
-            createdAt: existingData.createdAt,
-            updatedAt: serverTimestamp(),
-          });
-        } else {
-          await deleteDoc(docRef);
-          await setDoc(docRef, {
-            ...basePayload,
-            authorUid: user.uid,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          });
-        }
-      } else {
-        await setDoc(docRef, {
-          ...basePayload,
-          authorUid: user.uid,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-      }
-    } catch (error) {
-      handleFirestoreError(
-        error,
-        existingId ? OperationType.UPDATE : OperationType.CREATE,
-        `offers/${docId}`
-      );
-    }
+    await writeDocWithFallback('offers', docId, basePayload);
   };
 
   const deleteOfferPoster = async (id: string): Promise<void> => {
     const docId = sanitizeId(id);
-    const docRef = doc(db, 'offers', docId);
-    try {
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        await deleteDoc(docRef);
-      } else if (user) {
-        hasAutoSeededRef.current = true;
-        for (const offer of INITIAL_OFFERS) {
-          const seedId = sanitizeId(offer.privilegeCode.toLowerCase());
-          if (seedId !== docId) {
-            const seedRef = doc(db, 'offers', seedId);
-            const seedSnap = await getDoc(seedRef);
-            if (!seedSnap.exists()) {
-              await setDoc(seedRef, {
-                ...offer,
-                authorUid: user.uid,
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-              });
-            }
-          }
-        }
-      }
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `offers/${docId}`);
-    }
+    await deleteDocWithFallback('offers', docId);
   };
 
   const submitAtelierInquiry = async (
@@ -915,33 +752,31 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
       activeUser = await signInWithGoogle();
     }
     if (!activeUser) {
-      throw new Error('Please sign in with Google to submit your inquiry.');
+      throw new Error('Please sign in with Google to send your message.');
     }
 
     const inquiryId = sanitizeId(`inq_${Date.now()}`);
-    const docRef = doc(db, 'inquiries', inquiryId);
-    try {
-      await setDoc(docRef, {
+    await writeDocWithFallback(
+      'inquiries',
+      inquiryId,
+      {
         name: (inquiry.name.trim() || activeUser.displayName || 'Customer').slice(0, 100),
         email: (inquiry.email.trim() || activeUser.email || '').slice(0, 180),
         phone: (inquiry.phone.trim() || '+91 98251 21298').slice(0, 30),
         preferredDate: (
-          inquiry.preferredDate.trim() || 'Shingar Dresses — M.G. Road Main Store'
+          inquiry.preferredDate.trim() || 'Branch 1: Main Store (M.G. Road)'
         ).slice(0, 80),
-        dressReference: (inquiry.dressReference.trim() || 'General Store Inquiry').slice(0, 150),
-        message: (inquiry.message.trim() || 'Requesting an in-store visit at Junagadh.').slice(
+        dressReference: (inquiry.dressReference.trim() || 'Store Question').slice(0, 150),
+        message: (inquiry.message.trim() || 'Interested in visiting the shop.').slice(
           0,
           1000
         ),
         authorUid: activeUser.uid,
-        createdAt: serverTimestamp(),
-      });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, `inquiries/${inquiryId}`);
-    }
+      },
+      false
+    );
   };
 
-  // Merge or prioritize authentic Junagadh catalog items; if Firestore only has legacy Mumbai seed IDs, include the authentic Junagadh items
   const displayedCollections: CollectionItem[] = useMemo(() => {
     const seedItems: CollectionItem[] = INITIAL_COLLECTIONS.map((item, idx) => ({
       ...item,
@@ -953,7 +788,6 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return seedItems;
     }
 
-    // Filter out old placeholder Mumbai/Delhi/Jaipur demo items unless edited by admin, and ensure authentic Junagadh items appear
     const nonLegacyFirestore = firestoreCollections.filter(
       (item) => !item.availableBranches?.includes('Mumbai (Kala Ghoda')
     );

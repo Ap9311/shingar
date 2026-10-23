@@ -25,11 +25,11 @@ import {
 } from '../../context/AtelierContext';
 
 const ADMIN_NAV = [
-  { path: '/admin', label: 'Dashboard', icon: LayoutDashboard, exact: true },
-  { path: '/admin/collection', label: 'Collection & Categories', icon: Shirt, exact: false },
-  { path: '/admin/offers', label: 'Promotional Offers', icon: Tag, exact: false },
-  { path: '/admin/users', label: 'Registered Customers', icon: Users, exact: false },
-  { path: '/admin/email', label: 'Email Composer (Gmail)', icon: Mail, exact: false },
+  { path: '/admin', label: 'Admin Home', icon: LayoutDashboard, exact: true },
+  { path: '/admin/collection', label: 'Clothes & Categories', icon: Shirt, exact: false },
+  { path: '/admin/offers', label: 'Store Offers', icon: Tag, exact: false },
+  { path: '/admin/users', label: 'Customers', icon: Users, exact: false },
+  { path: '/admin/email', label: 'Send Email', icon: Mail, exact: false },
 ];
 
 export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -59,12 +59,8 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
       <div className="min-h-[75vh] bg-stone-50 flex items-center justify-center p-6">
         <div className="bg-white border border-stone-200 p-8 max-w-md w-full text-center space-y-3">
           <RefreshCw className="w-6 h-6 text-stone-900 animate-spin mx-auto" />
-          <p className="font-serif text-2xl text-stone-950">
-            Verifying Administrator Credentials
-          </p>
-          <p className="text-xs text-stone-500">
-            Checking Firebase Authentication and server-side authorization...
-          </p>
+          <p className="font-serif text-2xl text-stone-950">Checking Admin Login...</p>
+          <p className="text-xs text-stone-500">Please wait a moment.</p>
         </div>
       </div>
     );
@@ -73,29 +69,28 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
   // Gate 1: Not signed in with Google
   if (!user) {
     return (
-      <div className="min-h-[80vh] bg-stone-50 flex items-center justify-center px-4 py-16">
-        <div className="bg-white border border-stone-200 max-w-lg w-full p-8 sm:p-10 space-y-6">
-          <div className="flex items-center gap-2.5 text-stone-900 text-xs font-semibold uppercase tracking-wider">
+      <div className="min-h-[80vh] bg-stone-50 flex items-center justify-center px-4 py-12">
+        <div className="bg-white border border-stone-200 max-w-md w-full p-6 sm:p-8 space-y-5">
+          <div className="flex items-center gap-2 text-stone-900 text-xs font-semibold uppercase tracking-wider">
             <ShieldCheck className="w-4 h-4" />
-            <span>Restricted Management Portal · Direct URL Access Only</span>
+            <span>Shop Admin Login</span>
           </div>
 
           <div className="space-y-2">
-            <h1 className="font-serif text-3xl sm:text-4xl text-stone-950">
+            <h1 className="font-serif text-3xl text-stone-950">
               Shingar Dresses Admin
             </h1>
             <p className="text-sm text-stone-600 leading-relaxed">
-              Sign in with an authorised administrator Google account (
+              Sign in with the shop admin Google account (
               <strong className="font-mono text-xs text-stone-900">
                 {AUTHORIZED_ADMIN_EMAILS.join(' or ')}
               </strong>
-              ). During sign-in, Google will also request permission to send customer
-              emails directly from your signed-in Gmail account.
+              ) to add clothes, update offers, view customers, and send emails.
             </p>
           </div>
 
           {adminAuthError && (
-            <div className="p-3.5 bg-stone-100 border border-stone-300 text-xs text-stone-900">
+            <div className="p-3 bg-stone-100 border border-stone-300 text-xs text-stone-900">
               {adminAuthError}
             </div>
           )}
@@ -104,20 +99,18 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
             type="button"
             onClick={() => signInAdminWithGoogle()}
             disabled={isSigningIn}
-            className="w-full py-3.5 px-6 bg-stone-950 text-white text-xs font-medium hover:bg-stone-800 transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            className="w-full py-3.5 px-6 bg-stone-950 text-white text-xs sm:text-sm font-medium hover:bg-stone-800 transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <ShieldCheck className="w-4 h-4" />
             <span>
-              {isSigningIn
-                ? 'Authenticating & Requesting Gmail Permission...'
-                : 'Sign In with Admin Google Account & Enable Gmail'}
+              {isSigningIn ? 'Signing In...' : 'Sign In as Admin with Google'}
             </span>
           </button>
 
-          <div className="pt-4 border-t border-stone-200 flex items-center justify-between text-xs text-stone-500">
-            <span>Protected by Firebase Auth &amp; Google OAuth</span>
+          <div className="pt-3 border-t border-stone-200 flex items-center justify-between text-xs text-stone-500">
+            <span>Admin Only</span>
             <Link to="/home" className="text-stone-900 font-medium hover:underline">
-              ← Return to Showcase
+              ← Back to Shop Website
             </Link>
           </div>
         </div>
@@ -125,48 +118,47 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   }
 
-  // Gate 2: Signed in with a non-admin Google account or server authorization not granted
+  // Gate 2: Signed in with a non-admin Google account
   const signedInEmail = (user.email || '').toLowerCase().trim();
   const isEmailAuthorized = isAuthorizedAdminEmail(signedInEmail);
 
   if (!isEmailAuthorized || !isAdminUnlocked) {
     return (
-      <div className="min-h-[80vh] bg-stone-50 flex items-center justify-center px-4 py-16">
-        <div className="bg-white border border-stone-200 max-w-lg w-full p-8 sm:p-10 space-y-6">
-          <div className="flex items-center gap-2.5 text-stone-900 text-xs font-semibold uppercase tracking-wider">
+      <div className="min-h-[80vh] bg-stone-50 flex items-center justify-center px-4 py-12">
+        <div className="bg-white border border-stone-200 max-w-md w-full p-6 sm:p-8 space-y-5">
+          <div className="flex items-center gap-2 text-stone-900 text-xs font-semibold uppercase tracking-wider">
             <ShieldAlert className="w-4 h-4" />
-            <span>Unauthorised Account</span>
+            <span>Wrong Google Account</span>
           </div>
 
           <div className="space-y-2">
-            <h1 className="font-serif text-3xl text-stone-950">
-              Admin Access Restricted
+            <h1 className="font-serif text-2xl sm:text-3xl text-stone-950">
+              Admin Access Only
             </h1>
             <p className="text-sm text-stone-600 leading-relaxed">
-              You are currently signed in as{' '}
-              <strong className="text-stone-900">{user.email}</strong>. Only authorised
-              administrator Google accounts (
+              You are signed in as <strong className="text-stone-900">{user.email}</strong>.
+              Only{' '}
               <strong className="font-mono text-xs text-stone-900">
                 {AUTHORIZED_ADMIN_EMAILS.join(' or ')}
-              </strong>
-              ) have permission to access the Shingar Dresses Admin Panel.
+              </strong>{' '}
+              can open this Admin page.
             </p>
           </div>
 
           {adminAuthError && (
-            <div className="p-3.5 bg-stone-100 border border-stone-300 text-xs text-stone-900">
+            <div className="p-3 bg-stone-100 border border-stone-300 text-xs text-stone-900">
               {adminAuthError}
             </div>
           )}
 
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col gap-2.5">
             {isEmailAuthorized ? (
               <button
                 type="button"
                 onClick={() => authorizeAdminWithServer(user)}
-                className="flex-1 py-3 px-5 bg-stone-950 text-white text-xs font-medium hover:bg-stone-800 transition-colors cursor-pointer"
+                className="w-full py-3 px-5 bg-stone-950 text-white text-xs font-medium hover:bg-stone-800 transition-colors cursor-pointer"
               >
-                Retry Server Verification
+                Try Again
               </button>
             ) : null}
             <button
@@ -175,15 +167,15 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
                 await signOutUser();
                 await signInAdminWithGoogle();
               }}
-              className="flex-1 py-3 px-5 bg-stone-950 text-white text-xs font-medium hover:bg-stone-800 transition-colors cursor-pointer"
+              className="w-full py-3 px-5 bg-stone-950 text-white text-xs font-medium hover:bg-stone-800 transition-colors cursor-pointer"
             >
-              Switch to Admin Google Account
+              Sign In with Admin Google Account
             </button>
             <Link
               to="/home"
-              className="py-3 px-5 border border-stone-300 text-stone-800 text-xs font-medium text-center hover:border-stone-900"
+              className="w-full py-3 px-5 border border-stone-300 text-stone-800 text-xs font-medium text-center hover:border-stone-900"
             >
-              Back to Website
+              Back to Shop Website
             </Link>
           </div>
         </div>
@@ -193,20 +185,18 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900">
-      {/* Admin Top Header Bar */}
+      {/* Simple Admin Top Bar */}
       <div className="bg-stone-950 text-white border-b border-stone-800">
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
             <ShieldCheck className="w-4 h-4 text-stone-300" />
-            <span className="text-xs font-medium tracking-wide">
-              Shingar Dresses Admin Panel
-            </span>
+            <span className="text-xs font-semibold">Shop Admin</span>
             <span className="text-stone-600">·</span>
             <span className="text-xs font-mono text-stone-300">{user.email}</span>
             {gmailAccessToken ? (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-950 border border-emerald-700 text-[11px] text-emerald-300">
                 <CheckCircle2 className="w-3 h-3" />
-                <span>Gmail Connected ({user.email})</span>
+                <span>Gmail Connected</span>
               </span>
             ) : (
               <button
@@ -215,18 +205,18 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
                 className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-stone-800 hover:bg-stone-700 border border-stone-600 text-[11px] text-white font-medium transition-colors cursor-pointer"
               >
                 <Mail className="w-3 h-3" />
-                <span>Connect Gmail ({user.email})</span>
+                <span>Connect Gmail</span>
               </button>
             )}
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <Link
               to="/home"
               className="text-xs text-stone-300 hover:text-white inline-flex items-center gap-1"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Public Showcase</span>
+              <span>Open Shop Website</span>
             </Link>
             <button
               type="button"
@@ -239,7 +229,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
           </div>
         </div>
 
-        {/* Admin Module Navigation Tabs */}
+        {/* Simple Navigation Tabs */}
         <div className="max-w-[1440px] mx-auto px-4 sm:px-8 flex items-center gap-1 overflow-x-auto border-t border-stone-800">
           {ADMIN_NAV.map((item) => {
             const Icon = item.icon;
@@ -263,7 +253,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
       </div>
 
       {/* Admin Page Content */}
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-8 py-8 sm:py-12">{children}</div>
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-8 py-6 sm:py-10">{children}</div>
     </div>
   );
 };

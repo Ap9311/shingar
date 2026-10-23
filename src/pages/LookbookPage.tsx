@@ -31,24 +31,20 @@ export const LookbookPage: React.FC = () => {
   return (
     <main className="bg-white min-h-screen text-stone-900">
       {/* Header */}
-      <section className="bg-stone-50 border-b border-stone-200 py-12 sm:py-16">
+      <section className="bg-stone-50 border-b border-stone-200 py-10 sm:py-14">
         <div className="max-w-[1440px] mx-auto px-4 sm:px-8">
-          <div className="max-w-2xl space-y-3">
-            <div className="flex items-center gap-2 text-xs text-stone-500">
-              <span>Seasonal Fashion Archive</span>
-              <span aria-hidden="true">·</span>
-              <span>Editorial Photography</span>
-            </div>
-            <h1 className="font-serif text-4xl sm:text-5xl text-stone-950 tracking-tight">
+          <div className="max-w-2xl space-y-2">
+            <p className="text-xs text-stone-500">Store Photo Gallery</p>
+            <h1 className="font-serif text-3xl sm:text-5xl text-stone-950 tracking-tight">
               Fashion Lookbook
             </h1>
             <p className="text-sm sm:text-base text-stone-600 leading-relaxed">
-              Explore our curated gallery of bridal, handloom, and festive fashion
-              photography. Select any frame to inspect garment details and fabric notes.
+              Photos of our latest clothes at Shingar Dresses and Shingar NX. Tap any
+              photo to see details.
             </p>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-stone-200 flex items-center gap-2 overflow-x-auto pb-1">
+          <div className="mt-6 pt-5 border-t border-stone-200 flex items-center gap-2 overflow-x-auto pb-1">
             {chapters.map((chapter) => {
               const active = selectedChapter === chapter;
               return (
@@ -71,13 +67,13 @@ export const LookbookPage: React.FC = () => {
       </section>
 
       {/* Gallery Grid */}
-      <section className="max-w-[1440px] mx-auto px-4 sm:px-8 py-12 sm:py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <section className="max-w-[1440px] mx-auto px-4 sm:px-8 py-10 sm:py-14">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
           {filteredGallery.map((item, idx) => (
             <figure
               key={item.id}
               onClick={() => setLightboxItem(item)}
-              className="group border border-stone-200 bg-white cursor-pointer flex flex-col justify-between hover:-translate-y-0.5 hover:shadow-md transition-all duration-200"
+              className="group border border-stone-200 bg-white cursor-pointer flex flex-col justify-between hover:border-stone-950 transition-all duration-200"
             >
               <div className="relative aspect-[3/4] w-full overflow-hidden bg-stone-100">
                 <CoutureArtwork
@@ -96,9 +92,8 @@ export const LookbookPage: React.FC = () => {
               <figcaption className="p-5 space-y-1.5">
                 <div className="flex items-center justify-between text-xs text-stone-500">
                   <span>
-                    Look {String(idx + 1).padStart(2, '0')} · {item.category}
+                    Photo {String(idx + 1).padStart(2, '0')} · {item.category}
                   </span>
-                  <span className="font-mono">{item.sku}</span>
                 </div>
                 <h2 className="font-serif text-2xl text-stone-950 group-hover:text-stone-600 transition-colors">
                   {item.title}
@@ -120,7 +115,7 @@ export const LookbookPage: React.FC = () => {
             className="bg-white border border-stone-200 max-w-4xl w-full grid grid-cols-1 md:grid-cols-12 overflow-hidden shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="md:col-span-7 aspect-[3/4] md:aspect-auto md:min-h-[540px] bg-stone-100">
+            <div className="md:col-span-7 aspect-[3/4] md:aspect-auto md:min-h-[500px] bg-stone-100">
               <CoutureArtwork
                 src={lightboxItem.imageUrl}
                 alt={lightboxItem.title}
@@ -133,20 +128,20 @@ export const LookbookPage: React.FC = () => {
             <div className="md:col-span-5 p-6 sm:p-8 flex flex-col justify-between space-y-6">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono text-stone-600">
-                    {lightboxItem.lookbookChapter}
+                  <span className="text-xs text-stone-500">
+                    {lightboxItem.category}
                   </span>
                   <button
                     type="button"
                     onClick={() => setLightboxItem(null)}
-                    aria-label="Close lookbook frame"
-                    className="p-1.5 text-stone-400 hover:text-stone-900 border border-stone-200"
+                    aria-label="Close"
+                    className="p-1.5 text-stone-400 hover:text-stone-900 border border-stone-200 cursor-pointer"
                   >
                     <X className="w-4 h-4" />
                   </button>
                 </div>
 
-                <h2 className="font-serif text-3xl text-stone-950">
+                <h2 className="font-serif text-2xl sm:text-3xl text-stone-950">
                   {lightboxItem.title}
                 </h2>
 
@@ -156,15 +151,11 @@ export const LookbookPage: React.FC = () => {
 
                 <div className="border-t border-stone-200 pt-4 space-y-2 text-xs">
                   <p>
-                    <span className="text-stone-500">Category:</span>{' '}
-                    <strong className="text-stone-900">{lightboxItem.category}</strong>
-                  </p>
-                  <p>
                     <span className="text-stone-500">Fabric:</span>{' '}
                     <strong className="text-stone-900">{lightboxItem.fabric}</strong>
                   </p>
                   <p>
-                    <span className="text-stone-500">Silhouette:</span>{' '}
+                    <span className="text-stone-500">Fit:</span>{' '}
                     <strong className="text-stone-900">{lightboxItem.silhouette}</strong>
                   </p>
                   <p>
@@ -172,7 +163,7 @@ export const LookbookPage: React.FC = () => {
                     <strong className="font-mono text-stone-900">
                       {lightboxItem.price > 0
                         ? `₹${lightboxItem.price.toLocaleString('en-IN')}`
-                        : 'Price on Request'}
+                        : 'Ask Price in Shop'}
                     </strong>
                   </p>
                 </div>
@@ -183,16 +174,14 @@ export const LookbookPage: React.FC = () => {
                   to={`/collection?piece=${encodeURIComponent(lightboxItem.id)}`}
                   className="w-full py-3 bg-stone-950 text-white text-xs font-medium flex items-center justify-center gap-2 hover:bg-stone-800 transition-colors"
                 >
-                  <span>Open in Collection Catalog</span>
+                  <span>See in Collection</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
                 <Link
-                  to={`/contact?dress=${encodeURIComponent(
-                    `${lightboxItem.title} (${lightboxItem.sku})`
-                  )}`}
+                  to={`/contact?dress=${encodeURIComponent(lightboxItem.title)}`}
                   className="w-full py-3 border border-stone-300 text-stone-900 text-xs font-medium flex items-center justify-center hover:border-stone-900 transition-colors"
                 >
-                  Book Fitting in Store
+                  Ask About This Cloth
                 </Link>
               </div>
             </div>

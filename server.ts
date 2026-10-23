@@ -26,7 +26,7 @@ function isAuthorizedAdminEmail(email: string): boolean {
 
 const SESSION_SECRET =
   process.env.ADMIN_SESSION_SECRET || 'shingar-dresses-admin-hmac-secret-2026';
-const FIREBASE_PROJECT_ID = 'obsidian-507319';
+const ALLOWED_FIREBASE_PROJECTS = ['shingar-dresses', 'obsidian-507319'];
 
 interface VerifiedFirebaseUser {
   uid: string;
@@ -43,10 +43,12 @@ function verifyFirebaseIdTokenPayload(idToken: string): VerifiedFirebaseUser | n
 
     const nowSec = Math.floor(Date.now() / 1000);
     if (!payload.exp || payload.exp < nowSec - 60) return null;
-    if (
-      payload.aud !== FIREBASE_PROJECT_ID ||
-      !String(payload.iss || '').includes(FIREBASE_PROJECT_ID)
-    ) {
+    const aud = String(payload.aud || '');
+    const iss = String(payload.iss || '');
+    const validProject = ALLOWED_FIREBASE_PROJECTS.some(
+      (proj) => aud === proj && iss.includes(proj)
+    );
+    if (!validProject) {
       return null;
     }
 
