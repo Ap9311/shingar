@@ -17,17 +17,18 @@ import {
   MapPin,
   Phone,
   ArrowUpRight,
+  Compass,
 } from 'lucide-react';
 import { useAtelier } from '../context/AtelierContext';
 import { SHINGAR_CONTACT_DETAILS, SHINGAAR_BRANCHES } from '../data/seedData';
 
 const NAV_LINKS = [
-  { path: '/home', label: 'Home', subtitle: 'Main Page', icon: Home },
-  { path: '/collection', label: 'Collection', subtitle: 'All Clothes', icon: Grid },
-  { path: '/lookbook', label: 'Lookbook', subtitle: 'Photo Gallery', icon: Camera },
-  { path: '/offers', label: 'Offers', subtitle: 'Store Sales', icon: Tag },
-  { path: '/about', label: 'About', subtitle: 'Our Story', icon: Info },
-  { path: '/contact', label: 'Contact', subtitle: 'Phone & Map', icon: MapPin },
+  { path: '/home', label: 'Home', subtitle: 'Showcase & Highlights', icon: Home },
+  { path: '/collection', label: 'Collection', subtitle: 'Readymade, Ethnic & NX', icon: Grid },
+  { path: '/lookbook', label: 'Lookbook', subtitle: 'Fashion Editorial Gallery', icon: Camera },
+  { path: '/offers', label: 'Offers', subtitle: 'In-Store Privileges', icon: Tag },
+  { path: '/about', label: 'About', subtitle: 'Brand Story & Showrooms', icon: Info },
+  { path: '/contact', label: 'Contact', subtitle: 'M.G. Road & Motibaug Stores', icon: MapPin },
 ];
 
 export const Navbar: React.FC = () => {
@@ -35,6 +36,7 @@ export const Navbar: React.FC = () => {
   const { user, isSigningIn, authError, signInWithGoogle, signOutUser } = useAtelier();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Close mobile menu automatically on route change
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
@@ -46,18 +48,40 @@ export const Navbar: React.FC = () => {
     return location.pathname.startsWith(path);
   };
 
+  const activeNavItem =
+    NAV_LINKS.find((item) => isActive(item.path)) || NAV_LINKS[0];
+
   return (
     <>
       <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-stone-200">
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-8 h-16 sm:h-20 flex items-center justify-between gap-4">
-          {/* Brand Name */}
-          <Link to="/home" className="flex items-center shrink-0 group">
-            <span className="font-serif text-2xl sm:text-[28px] font-medium tracking-tight text-stone-950 leading-none group-hover:text-stone-600 transition-colors">
-              Shingar Dresses
-            </span>
-          </Link>
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-8 h-16 sm:h-20 flex items-center justify-between gap-6">
+          {/* Zone 1: Brand Wordmark + Current Page Indicator */}
+          <div className="flex items-center gap-4 shrink-0">
+            <Link
+              to="/home"
+              className="flex items-center shrink-0 group"
+            >
+              <span className="font-serif text-2xl sm:text-[28px] font-medium tracking-tight text-stone-950 leading-none group-hover:text-stone-600 transition-colors">
+                Shingar Dresses
+              </span>
+            </Link>
 
-          {/* Desktop Navigation Links */}
+            {/* Clear Current Page Location Badge */}
+            <div
+              aria-label="Current Page Indicator"
+              className="hidden sm:inline-flex items-center gap-1.5 pl-4 border-l border-stone-200 text-xs text-stone-500"
+            >
+              <Compass className="w-3.5 h-3.5 text-stone-700" />
+              <span className="font-mono uppercase tracking-wider text-[10px] text-stone-400">
+                Page:
+              </span>
+              <span className="font-medium text-stone-950">
+                {activeNavItem.label}
+              </span>
+            </div>
+          </div>
+
+          {/* Zone 2: Desktop Navigation Links (No public Admin link) */}
           <nav
             aria-label="Primary Navigation"
             className="hidden lg:flex items-center gap-7"
@@ -88,8 +112,8 @@ export const Navbar: React.FC = () => {
             })}
           </nav>
 
-          {/* Right: Google Sign-In & Smooth Menu Button */}
-          <div className="flex items-center gap-2.5 shrink-0">
+          {/* Zone 3: Customer Google Sign-In & Animated Clothing-Store Menu Button */}
+          <div className="flex items-center gap-3 shrink-0">
             {user ? (
               <div className="hidden sm:flex items-center gap-2.5 pl-2">
                 {user.photoURL ? (
@@ -121,14 +145,19 @@ export const Navbar: React.FC = () => {
                 type="button"
                 onClick={() => signInWithGoogle()}
                 disabled={isSigningIn}
-                className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 sm:py-2.5 text-xs font-medium text-white bg-stone-950 hover:bg-stone-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+                className="hidden sm:inline-flex items-center gap-2 px-4 py-2.5 text-xs font-medium text-white bg-stone-950 hover:bg-stone-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
               >
                 <UserIcon className="w-3.5 h-3.5" />
-                <span>{isSigningIn ? 'Signing In...' : 'Sign In'}</span>
+                <span>{isSigningIn ? 'Signing In...' : 'Sign In with Google'}</span>
               </button>
             )}
 
-            {/* Smooth Animated Menu Button */}
+            {/* Mobile Current Page Pill + Animated Menu Button */}
+            <span className="sm:hidden text-[11px] font-mono uppercase tracking-wider px-2.5 py-1 bg-stone-100 text-stone-800 border border-stone-200">
+              {activeNavItem.label}
+            </span>
+
+            {/* Animated Fashion Atelier Hamburger / Close Button */}
             <button
               type="button"
               onClick={() => setMobileMenuOpen((prev) => !prev)}
@@ -136,7 +165,7 @@ export const Navbar: React.FC = () => {
               aria-expanded={mobileMenuOpen}
               className="lg:hidden relative inline-flex items-center gap-2 px-3 py-2 border border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-950 transition-colors cursor-pointer"
             >
-              <span className="text-xs font-medium">
+              <span className="text-[11px] font-mono uppercase tracking-widest font-medium">
                 {mobileMenuOpen ? 'Close' : 'Menu'}
               </span>
               <div className="relative w-5 h-4 flex flex-col justify-between items-end">
@@ -172,13 +201,14 @@ export const Navbar: React.FC = () => {
           </div>
         </div>
 
+        {/* Auth Error Toast Banner if popup was blocked or closed */}
         {authError && (
           <div className="bg-stone-100 border-t border-stone-300 px-4 py-2 text-center text-xs text-stone-900">
             {authError}
           </div>
         )}
 
-        {/* Mobile Menu Drawer */}
+        {/* Smooth Animated Clothing-Shop Mobile Drawer */}
         <AnimatePresence>
           {mobileMenuOpen && (
             <>
@@ -199,8 +229,8 @@ export const Navbar: React.FC = () => {
                 transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
                 className="lg:hidden relative z-40 border-t border-stone-200 bg-white overflow-hidden shadow-2xl"
               >
-                <div className="px-4 py-5 space-y-5 max-h-[calc(100vh-5rem)] overflow-y-auto">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="px-5 py-6 space-y-6 max-h-[calc(100vh-5rem)] overflow-y-auto">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {NAV_LINKS.map((item, idx) => {
                       const Icon = item.icon;
                       const active = isActive(item.path);
@@ -209,12 +239,12 @@ export const Navbar: React.FC = () => {
                           key={item.path}
                           initial={{ opacity: 0, x: -12 }}
                           animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: idx * 0.04, duration: 0.22 }}
+                          transition={{ delay: idx * 0.04, duration: 0.24 }}
                         >
                           <Link
                             to={item.path}
                             onClick={() => setMobileMenuOpen(false)}
-                            className={`flex items-center justify-between px-4 py-3 border transition-colors ${
+                            className={`flex items-center justify-between px-4 py-3.5 border transition-colors ${
                               active
                                 ? 'bg-stone-950 text-white border-stone-950'
                                 : 'bg-stone-50 text-stone-900 border-stone-200 hover:border-stone-400'
@@ -269,7 +299,7 @@ export const Navbar: React.FC = () => {
                           )}
                           <div className="min-w-0">
                             <p className="text-xs font-semibold text-stone-900 truncate">
-                              {user.displayName || 'Customer'}
+                              {user.displayName || 'Valued Customer'}
                             </p>
                             <p className="text-[11px] text-stone-500 truncate">
                               {user.email}
@@ -322,7 +352,7 @@ export const Navbar: React.FC = () => {
         </AnimatePresence>
       </header>
 
-      {/* Mobile Bottom Navigation Bar */}
+      {/* Touch-Friendly Mobile Bottom Navigation Bar */}
       <nav
         aria-label="Mobile Bottom Navigation"
         className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-stone-200 px-1 py-1 flex items-center justify-around"
@@ -335,7 +365,7 @@ export const Navbar: React.FC = () => {
               key={item.path}
               to={item.path}
               aria-current={active ? 'page' : undefined}
-              className={`flex flex-col items-center justify-center min-w-[50px] py-1.5 text-[10px] font-medium transition-colors ${
+              className={`flex flex-col items-center justify-center min-w-[52px] py-1.5 text-[10px] font-medium transition-colors ${
                 active
                   ? 'text-stone-950 font-semibold border-t-2 border-stone-950 -mt-[2px]'
                   : 'text-stone-500'
@@ -354,8 +384,8 @@ export const Navbar: React.FC = () => {
 export const Footer: React.FC = () => {
   return (
     <footer className="bg-stone-950 text-stone-200 border-t border-stone-800 pb-20 lg:pb-0">
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-8 py-14">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
           <div className="space-y-4">
             <Link
               to="/home"
@@ -379,9 +409,9 @@ export const Footer: React.FC = () => {
             </div>
           </div>
 
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             <h3 className="text-xs font-semibold tracking-wider uppercase text-stone-400">
-              Pages
+              Explore Showcase
             </h3>
             <ul className="space-y-2 text-sm text-stone-300">
               <li>
@@ -391,35 +421,35 @@ export const Footer: React.FC = () => {
               </li>
               <li>
                 <Link to="/collection" className="hover:text-white transition-colors">
-                  Collection
+                  Clothing Collection
                 </Link>
               </li>
               <li>
                 <Link to="/lookbook" className="hover:text-white transition-colors">
-                  Lookbook
+                  Fashion Lookbook
                 </Link>
               </li>
               <li>
                 <Link to="/offers" className="hover:text-white transition-colors">
-                  Offers
+                  Promotional Offers
                 </Link>
               </li>
               <li>
                 <Link to="/about" className="hover:text-white transition-colors">
-                  About
+                  Brand Story &amp; Branches
                 </Link>
               </li>
               <li>
                 <Link to="/contact" className="hover:text-white transition-colors">
-                  Contact
+                  Contact &amp; Store Hours
                 </Link>
               </li>
             </ul>
           </div>
 
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             <h3 className="text-xs font-semibold tracking-wider uppercase text-stone-400">
-              Our 2 Shops in Junagadh
+              Junagadh Showrooms
             </h3>
             <ul className="space-y-3 text-sm text-stone-400">
               {SHINGAAR_BRANCHES.map((branch) => (
@@ -427,15 +457,7 @@ export const Footer: React.FC = () => {
                   <strong className="text-stone-200 font-medium block">
                     {branch.name}
                   </strong>
-                  <span className="text-xs text-stone-400 block">{branch.address}</span>
-                  <a
-                    href={branch.directionsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-stone-300 underline hover:text-white mt-0.5 inline-block"
-                  >
-                    Open in Google Maps →
-                  </a>
+                  <span className="text-xs text-stone-400">{branch.address}</span>
                 </li>
               ))}
             </ul>

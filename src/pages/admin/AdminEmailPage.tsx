@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
+  Mail,
   Send,
   Paperclip,
   X,
@@ -14,6 +15,7 @@ import {
   Underline,
   Heading2,
   List,
+  Link as LinkIcon,
   Smartphone,
   Monitor,
   CheckCircle2,
@@ -21,57 +23,45 @@ import {
   CheckSquare,
   Square,
   Sparkles,
-  Mail,
-  Clock,
+  ShieldCheck,
+  AlertCircle,
 } from 'lucide-react';
-import {
-  useAtelier,
-  AUTHORIZED_ADMIN_EMAIL,
-  AUTHORIZED_ADMIN_EMAILS,
-} from '../../context/AtelierContext';
+import { useAtelier, AUTHORIZED_ADMIN_EMAIL } from '../../context/AtelierContext';
 import { EmailAttachment } from '../../types';
 
 type RecipientMode = 'individual' | 'selected' | 'all';
 
-interface SentEmailRecord {
-  id: string;
-  senderEmail: string;
-  authenticatedBy: string;
-  recipients: string[];
-  subject: string;
-  sentAt: string;
-  deliveryMode: string;
-}
-
 const EMAIL_TEMPLATES = [
   {
-    label: 'Festival & Wedding Sale Invite',
-    subject: 'Hello {Name}, New Clothes & Sale at Shingar Dresses, Junagadh',
-    html: `<h2 style="font-family: Georgia, serif; color: #111111; margin-bottom: 12px;">Special Invite for {Name}</h2>
+    label: 'Festive & Wedding Showcase Invite',
+    subject: 'Namaste {Name}, You Are Invited to Shingar Dresses & Shingar NX, Junagadh',
+    html: `<h2 style="font-family: Georgia, serif; color: #111111; margin-bottom: 12px;">Special Invitation for {Name}</h2>
 <p>Dear <strong>{Name}</strong>,</p>
-<p>Greetings from <strong>Shingar Dresses &amp; Shingar NX, Junagadh</strong>! Visit our shops with your family to see our new collection and current in-store sale:</p>
+<p>Greetings from <strong>Shingar Dresses &amp; Shingar NX (Established 1987, Junagadh)</strong>! We are delighted to invite you and your family to explore our newly arrived <strong>2026 Ethnic, Streetwear &amp; Kids' Festive Collection</strong> across our two Junagadh showrooms:</p>
 <ul>
-  <li><strong>Men's Kurta-Pyjamas &amp; Readymade Wear</strong></li>
-  <li><strong>Shingar NX Youth Streetwear (T-Shirts, Overshirts &amp; Jeans)</strong></li>
-  <li><strong>Kids' Festive Clothes &amp; School Uniforms</strong></li>
+  <li><strong>Men's Readymade &amp; Kurta-Pyjamas:</strong> Jacquard silk kurtas, wedding sherwanis &amp; festive bandis</li>
+  <li><strong>Shingar NX Streetwear:</strong> Oversized graphic tees, utility cargo denim &amp; youth casuals</li>
+  <li><strong>Kids' Festive &amp; Bridal Silk Sarees:</strong> Complete family wedding &amp; festival wardrobe</li>
 </ul>
-<p>Visit our <strong>M.G. Road Main Shop</strong> or <strong>Shingar NX on Motibaug Road (Above Bata Showroom)</strong> directly to shop.</p>
-<p>Warm regards,<br/><strong>Shingar Dresses &amp; Shingar NX</strong><br/>Junagadh · Phone / WhatsApp: +91 98251 21298</p>`,
+<p>Present code <strong>SHINGAR-FESTIVE-15</strong> at our M.G. Road or Motibaug Road showroom for your 15% Patron Privilege.</p>
+<p>Warm regards,<br/><strong>Ashvin A. Shah &amp; Team — Shingar Dresses</strong><br/>M.G. Road &amp; Motibaug Road, Junagadh · WhatsApp: +91 98251 21298</p>`,
   },
   {
-    label: 'Shingar NX New Stock',
-    subject: 'Hi {Name}, New Streetwear Arrived at Shingar NX, Motibaug Road',
-    html: `<h2 style="font-family: Georgia, serif; color: #111111; margin-bottom: 12px;">Hi {Name}, New Clothes at Shingar NX!</h2>
-<p>Hello <strong>{Name}</strong>,</p>
-<p>New t-shirts, overshirts, and cargo jeans have arrived at <strong>Shingar NX (Motibaug Road, Above Bata Showroom, Junagadh)</strong>.</p>
-<p>Our sale is going on in store — visit us any day from 10:00 AM to 10:00 PM!</p>`,
+    label: 'Shingar NX Streetwear Drop',
+    subject: 'New Streetwear Arrival for {Name} at Shingar NX, Motibaug Road',
+    html: `<h2 style="font-family: Georgia, serif; color: #111111; margin-bottom: 12px;">Hey {Name}, Fresh Streetwear Just Landed at Shingar NX!</h2>
+<p>Hi <strong>{Name}</strong>,</p>
+<p>Our newest batch of heavyweight oversized graphic t-shirts, relaxed cargo denims, and urban co-ord sets is now on display at <strong>Shingar NX (Motibaug Road, Above Bata Showroom, Junagadh)</strong>.</p>
+<p><strong>Showroom Reference Code:</strong> SHINGAR-NX-DROP (Flat ₹300 Off on 2+ Streetwear Combos)</p>
+<p>Visit us daily from 10:00 AM to 10:00 PM!</p>`,
   },
   {
-    label: 'Reply to Customer Message',
+    label: 'Store Inquiry Follow-Up',
     subject: 'Thank You {Name} for Contacting Shingar Dresses, Junagadh',
-    html: `<h2 style="font-family: Georgia, serif; color: #111111; margin-bottom: 12px;">Hello {Name},</h2>
+    html: `<h2 style="font-family: Georgia, serif; color: #111111; margin-bottom: 12px;">We Look Forward to Welcoming You, {Name}</h2>
 <p>Dear <strong>{Name}</strong>,</p>
-<p>Thank you for messaging <strong>Shingar Dresses, Junagadh</strong>. You can visit our M.G. Road or Motibaug Road shop anytime, or call/WhatsApp us at <strong>+91 98251 21298</strong>.</p>`,
+<p>Thank you for reaching out to <strong>Shingar Dresses, Junagadh</strong>. Our showroom team has noted your inquiry and set aside the requested styles for your in-store viewing.</p>
+<p>For instant directions or WhatsApp assistance, call or message us anytime at <strong>+91 98251 21298</strong> or <strong>+91 98251 21598</strong>.</p>`,
   },
 ];
 
@@ -107,10 +97,9 @@ export const AdminEmailPage: React.FC = () => {
   const {
     user,
     usersDirectory,
-    inquiries,
     gmailAccessToken,
-    senderGmailAccount,
-    setSenderGmailAccount,
+    connectAdminGmail,
+    isSigningIn,
   } = useAtelier();
   const [searchParams] = useSearchParams();
 
@@ -133,41 +122,11 @@ export const AdminEmailPage: React.FC = () => {
     ok: boolean;
     message: string;
   } | null>(null);
-  const [sentHistory, setSentHistory] = useState<SentEmailRecord[]>([]);
 
-  const activeSenderEmail =
-    senderGmailAccount || user?.email || AUTHORIZED_ADMIN_EMAIL;
-
-  const fetchSentHistory = async () => {
-    try {
-      const res = await fetch('/api/admin/email');
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.sentEmails)) {
-          setSentHistory(data.sentEmails);
-        }
-      }
-    } catch {
-      // Ignore fetch errors
-    }
-  };
-
-  useEffect(() => {
-    fetchSentHistory();
-  }, []);
-
+  // Load initial mode & recipients from query params (e.g., from /admin/users)
   useEffect(() => {
     const modeParam = searchParams.get('mode') as RecipientMode | null;
     const recParam = searchParams.get('recipients');
-    const subjectParam = searchParams.get('subject');
-    const replyMsgParam = searchParams.get('replyMessage');
-
-    if (subjectParam) {
-      setSubject(subjectParam);
-    }
-    if (replyMsgParam) {
-      setHtmlBody(replyMsgParam);
-    }
 
     if (modeParam === 'all') {
       setMode('all');
@@ -192,6 +151,7 @@ export const AdminEmailPage: React.FC = () => {
     }
   }, [searchParams, usersDirectory]);
 
+  // Keep previewRecipientEmail synced with current recipients list
   useEffect(() => {
     if (recipients.length > 0 && !recipients.includes(previewRecipientEmail)) {
       setPreviewRecipientEmail(recipients[0]);
@@ -200,6 +160,7 @@ export const AdminEmailPage: React.FC = () => {
     }
   }, [recipients, previewRecipientEmail]);
 
+  // Resolve a customer's display name from their email address
   const resolveCustomerName = (emailAddress: string): string => {
     const cleanEmail = (emailAddress || '').toLowerCase().trim();
     const matchedUser = usersDirectory.find(
@@ -208,19 +169,14 @@ export const AdminEmailPage: React.FC = () => {
     if (matchedUser && matchedUser.displayName && matchedUser.displayName.trim()) {
       return matchedUser.displayName.trim();
     }
-    const matchedInquiry = inquiries.find(
-      (inq) => (inq.email || '').toLowerCase().trim() === cleanEmail
-    );
-    if (matchedInquiry && matchedInquiry.name && matchedInquiry.name.trim()) {
-      return matchedInquiry.name.trim();
-    }
     if (cleanEmail.includes('@')) {
       const localPart = cleanEmail.split('@')[0].replace(/[._-]+/g, ' ').trim();
       if (localPart) return toTitleCase(localPart);
     }
-    return 'Customer';
+    return 'Valued Customer';
   };
 
+  // Replace {name}, {Name}, {NAME}, {first_name}, etc. with the customer's personalized name
   const applyPersonalizationTokens = (templateText: string, emailAddress: string): string => {
     const rawName = resolveCustomerName(emailAddress);
     const titleName = toTitleCase(rawName);
@@ -234,6 +190,7 @@ export const AdminEmailPage: React.FC = () => {
       .replace(/\{\s*NAME\s*\}/g, upperName)
       .replace(/\{\s*first_name\s*\}/gi, firstName)
       .replace(/\{\s*customer_name\s*\}/gi, titleName)
+      // Catch any other mixed-case {nAmE} format
       .replace(/\{\s*name\s*\}/gi, titleName);
   };
 
@@ -303,6 +260,7 @@ export const AdminEmailPage: React.FC = () => {
   };
 
   const buildCompiledEmailHtml = (personalizedBodyHtml: string) => {
+    const senderAddress = user?.email || AUTHORIZED_ADMIN_EMAIL;
     return `
       <div style="background-color: #f5f5f4; padding: 24px 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1c1917;">
         <div style="max-width: 580px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e7e5e4;">
@@ -314,8 +272,8 @@ export const AdminEmailPage: React.FC = () => {
             ${personalizedBodyHtml}
           </div>
           <div style="border-top: 1px solid #e7e5e4; background-color: #fafaf9; padding: 18px 28px; font-size: 11px; color: #78716c; text-align: center;">
-            <p style="margin: 0 0 4px 0;">Sent from Shingar Dresses (${activeSenderEmail})</p>
-            <p style="margin: 0;">M.G. Road &amp; Motibaug Road, Junagadh - 362001 · +91 98251 21298</p>
+            <p style="margin: 0 0 4px 0;">Sent from Shingar Dresses Official Admin (${senderAddress})</p>
+            <p style="margin: 0;">Jenellie Shopping Centre, M.G. Road &amp; Motibaug Road, Junagadh - 362001 · +91 98251 21298</p>
           </div>
         </div>
       </div>
@@ -327,7 +285,7 @@ export const AdminEmailPage: React.FC = () => {
 
   const previewSubject = useMemo(
     () => applyPersonalizationTokens(subject, activePreviewEmail),
-    [subject, activePreviewEmail, usersDirectory, inquiries]
+    [subject, activePreviewEmail, usersDirectory]
   );
 
   const previewCompiledHtml = useMemo(() => {
@@ -336,14 +294,15 @@ export const AdminEmailPage: React.FC = () => {
       activePreviewEmail
     );
     return buildCompiledEmailHtml(personalizedBody);
-  }, [htmlBody, activePreviewEmail, usersDirectory, inquiries, activeSenderEmail]);
+  }, [htmlBody, activePreviewEmail, usersDirectory, user]);
 
+  // Construct RFC 2822 MIME message for Gmail API
   const buildRawGmailMimeMessage = (
     toEmail: string,
     personalizedSubject: string,
     compiledHtml: string
   ): string => {
-    const fromEmail = activeSenderEmail;
+    const fromEmail = user?.email || AUTHORIZED_ADMIN_EMAIL;
     const encodedSubject = encodeMimeHeaderUtf8(personalizedSubject);
 
     if (attachments.length === 0) {
@@ -351,7 +310,6 @@ export const AdminEmailPage: React.FC = () => {
         `From: "Shingar Dresses" <${fromEmail}>`,
         `To: <${toEmail}>`,
         `Subject: ${encodedSubject}`,
-        `Reply-To: <${fromEmail}>`,
         'MIME-Version: 1.0',
         'Content-Type: text/html; charset="UTF-8"',
         '',
@@ -365,7 +323,6 @@ export const AdminEmailPage: React.FC = () => {
       `From: "Shingar Dresses" <${fromEmail}>`,
       `To: <${toEmail}>`,
       `Subject: ${encodedSubject}`,
-      `Reply-To: <${fromEmail}>`,
       'MIME-Version: 1.0',
       `Content-Type: multipart/mixed; boundary="${boundary}"`,
       '',
@@ -390,10 +347,16 @@ export const AdminEmailPage: React.FC = () => {
     return encodeBase64Url(mimeParts.join('\r\n'));
   };
 
-  // Never open any Sign-In modal when clicking Send Email
-  const handleRequestSendConfirmation = (e: React.FormEvent) => {
+  const handleRequestSendConfirmation = async (e: React.FormEvent) => {
     e.preventDefault();
     if (recipients.length === 0) return;
+
+    // If Gmail OAuth token is not yet in memory, trigger Google OAuth consent first
+    if (!gmailAccessToken) {
+      const token = await connectAdminGmail();
+      if (!token) return;
+    }
+
     setConfirmModalOpen(true);
   };
 
@@ -401,176 +364,196 @@ export const AdminEmailPage: React.FC = () => {
     setConfirmModalOpen(false);
     setSending(true);
     setSendResult(null);
-    setSendProgress({ sent: 0, total: recipients.length });
 
+    let activeToken = gmailAccessToken;
+    if (!activeToken) {
+      activeToken = await connectAdminGmail();
+    }
+
+    if (!activeToken) {
+      setSending(false);
+      setSendResult({
+        ok: false,
+        message:
+          'Gmail send permission was not granted. Please click "Authorize Gmail Send" and approve Google access.',
+      });
+      return;
+    }
+
+    setSendProgress({ sent: 0, total: recipients.length });
     let successCount = 0;
     let lastError = '';
-    const isLiveGoogleToken = Boolean(
-      gmailAccessToken && gmailAccessToken.startsWith('ya29.')
-    );
 
     for (let i = 0; i < recipients.length; i++) {
       const recipientEmail = recipients[i];
       const personalizedSubject = applyPersonalizationTokens(subject, recipientEmail);
       const personalizedBody = applyPersonalizationTokens(htmlBody, recipientEmail);
       const finalHtml = buildCompiledEmailHtml(personalizedBody);
+      const rawMime = buildRawGmailMimeMessage(
+        recipientEmail,
+        personalizedSubject,
+        finalHtml
+      );
 
-      let sentViaGoogleDirect = false;
-
-      if (isLiveGoogleToken) {
-        try {
-          const rawMime = buildRawGmailMimeMessage(
-            recipientEmail,
-            personalizedSubject,
-            finalHtml
-          );
-          const gmailRes = await fetch(
-            'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
-            {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${gmailAccessToken}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ raw: rawMime }),
-            }
-          );
-          if (gmailRes.ok) {
-            sentViaGoogleDirect = true;
-            successCount++;
-          }
-        } catch {
-          // Fall back to server relay
-        }
-      }
-
-      // Always record or dispatch via /api/admin/email so sending on behalf of
-      // support.obsidian@gmail.com or akshatpopat9311@gmail.com works without re-login
-      if (!sentViaGoogleDirect) {
-        try {
-          const apiRes = await fetch('/api/admin/email', {
+      try {
+        const response = await fetch(
+          'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
+          {
             method: 'POST',
             headers: {
+              Authorization: `Bearer ${activeToken}`,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-              senderEmail: activeSenderEmail,
-              authenticatedBy: user?.email || AUTHORIZED_ADMIN_EMAIL,
-              recipients: [recipientEmail],
-              subject: personalizedSubject,
-              htmlBody: finalHtml,
-              attachments: attachments.map((a) => ({
-                filename: a.filename,
-                mimeType: a.mimeType,
-                contentBase64: a.contentBase64,
-              })),
-            }),
-          });
-
-          if (apiRes.ok) {
-            successCount++;
-          } else {
-            const errData = await apiRes.json().catch(() => ({}));
-            lastError = errData?.error || `Failed (${apiRes.status})`;
+            body: JSON.stringify({ raw: rawMime }),
           }
-        } catch (err) {
+        );
+
+        if (response.status === 401 || response.status === 403) {
+          // Token expired or missing scope; re-authorize once
+          const refreshedToken = await connectAdminGmail();
+          if (refreshedToken) {
+            activeToken = refreshedToken;
+            const retryRes = await fetch(
+              'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
+              {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${activeToken}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ raw: rawMime }),
+              }
+            );
+            if (retryRes.ok) {
+              successCount++;
+            } else {
+              const errData = await retryRes.json().catch(() => ({}));
+              lastError =
+                errData?.error?.message || `Gmail API error (${retryRes.status})`;
+            }
+          } else {
+            lastError = 'Gmail authorization expired or was cancelled.';
+          }
+        } else if (response.ok) {
+          successCount++;
+        } else {
+          const errData = await response.json().catch(() => ({}));
           lastError =
-            err instanceof Error ? err.message : 'Network error sending email';
+            errData?.error?.message || `Gmail API status ${response.status}`;
         }
+      } catch (err) {
+        lastError =
+          err instanceof Error ? err.message : 'Network error calling Gmail API';
       }
 
       setSendProgress({ sent: i + 1, total: recipients.length });
     }
 
     setSending(false);
-    await fetchSentHistory();
 
     if (successCount === recipients.length) {
-      const delegatedNote =
-        user?.email &&
-        user.email.toLowerCase() !== activeSenderEmail.toLowerCase()
-          ? ` (sent by ${user.email} on behalf of ${activeSenderEmail})`
-          : '';
       setSendResult({
         ok: true,
-        message: `Successfully sent ${successCount} personalized email(s) from ${activeSenderEmail}${delegatedNote}.`,
+        message: `Successfully sent ${successCount} personalized email(s) directly from your Gmail account (${
+          user?.email || AUTHORIZED_ADMIN_EMAIL
+        }).`,
       });
     } else if (successCount > 0) {
       setSendResult({
         ok: false,
-        message: `Sent ${successCount} of ${recipients.length} emails. Error: ${lastError}`,
+        message: `Sent ${successCount} of ${recipients.length} emails. Last error: ${lastError}`,
       });
     } else {
       setSendResult({
         ok: false,
-        message: `Could not send email: ${lastError || 'Please try again.'}`,
+        message: `Could not send email via Gmail: ${
+          lastError || 'Please verify Gmail send permission.'
+        }`,
       });
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
-      <div className="border-b border-stone-200 pb-5 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+      <div className="border-b border-stone-200 pb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <p className="text-xs text-stone-500 mb-1">
-            Admin Email System · Cookie Session Saved
+          <p className="text-xs text-stone-600 uppercase tracking-widest font-medium mb-1">
+            Direct Gmail OAuth Outreach · Personalized Customer Emails
           </p>
           <h1 className="font-serif text-3xl sm:text-4xl text-stone-950">
-            Send Email to Customers
+            Admin Gmail Composer
           </h1>
-          <p className="text-xs text-stone-600 mt-1">
-            Write <code className="font-mono font-semibold text-stone-950">{'{Name}'}</code>{' '}
-            anywhere and each customer will automatically see their own name.
+          <p className="text-xs text-stone-500 mt-1">
+            Sends directly from your signed-in Admin Gmail account (
+            <strong className="text-stone-900 font-mono">
+              {user?.email || AUTHORIZED_ADMIN_EMAIL}
+            </strong>
+            ) with automatic{' '}
+            <code className="font-mono text-stone-900 font-semibold">{'{Name}'}</code>{' '}
+            replacement for every customer.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-50 border border-emerald-200 text-xs text-emerald-900">
-            <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
-            <span>
-              Gmail Connected &amp; Saved in Cookies ({activeSenderEmail})
-            </span>
-          </div>
+          {gmailAccessToken ? (
+            <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-50 border border-emerald-200 text-xs text-emerald-900">
+              <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+              <span>
+                Gmail Connected:{' '}
+                <strong className="font-mono">
+                  {user?.email || AUTHORIZED_ADMIN_EMAIL}
+                </strong>
+              </span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => connectAdminGmail()}
+              disabled={isSigningIn}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-stone-950 hover:bg-stone-800 text-white text-xs font-medium transition-colors cursor-pointer"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>
+                {isSigningIn
+                  ? 'Requesting Gmail Permission...'
+                  : `Authorize Gmail (${user?.email || AUTHORIZED_ADMIN_EMAIL})`}
+              </span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Sender Account Selector (Send From / On Behalf Of) */}
-      <div className="bg-white border border-stone-200 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-stone-700">
-            <Mail className="w-3.5 h-3.5 text-stone-900" />
-            <span>Send Email From (Or On Behalf Of)</span>
+      {/* Gmail Authorization Notice if Token Needs Refresh */}
+      {!gmailAccessToken && (
+        <div className="bg-stone-100 border border-stone-300 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-stone-900">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-stone-700 shrink-0 mt-0.5" />
+            <div className="space-y-1 text-xs">
+              <p className="font-semibold text-sm">
+                Connect Your Signed-In Admin Gmail Account ({user?.email || AUTHORIZED_ADMIN_EMAIL})
+              </p>
+              <p className="leading-relaxed text-stone-600">
+                No external email APIs are required. Click{' '}
+                <strong>Authorize Gmail</strong> (or click Send Email below) and approve
+                Google&apos;s permission screen to send directly from{' '}
+                <strong className="font-mono text-stone-900">
+                  {user?.email || AUTHORIZED_ADMIN_EMAIL}
+                </strong>
+                .
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-stone-600">
-            Signed in as <strong className="text-stone-950">{user?.email}</strong>. You can
-            send directly from your email or on behalf of{' '}
-            <strong className="text-stone-950">support.obsidian@gmail.com</strong> or{' '}
-            <strong className="text-stone-950">akshatpopat9311@gmail.com</strong>.
-          </p>
+          <button
+            type="button"
+            onClick={() => connectAdminGmail()}
+            disabled={isSigningIn}
+            className="px-4 py-2.5 bg-stone-950 text-white text-xs font-medium hover:bg-stone-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            Authorize Gmail Now
+          </button>
         </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {AUTHORIZED_ADMIN_EMAILS.map((adminEmail) => {
-            const isSelected =
-              activeSenderEmail.toLowerCase() === adminEmail.toLowerCase();
-            return (
-              <button
-                key={adminEmail}
-                type="button"
-                onClick={() => setSenderGmailAccount(adminEmail)}
-                className={`px-3.5 py-2 text-xs font-mono border transition-colors cursor-pointer ${
-                  isSelected
-                    ? 'bg-stone-950 text-white border-stone-950 font-semibold'
-                    : 'bg-stone-50 text-stone-700 border-stone-300 hover:border-stone-900'
-                }`}
-              >
-                {adminEmail}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      )}
 
       {sendResult && (
         <div
@@ -590,16 +573,17 @@ export const AdminEmailPage: React.FC = () => {
         </div>
       )}
 
-      {/* Main Split View: Left Simple Form, Right Live Preview */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      {/* Main Split View: Left Composer, Right Live Responsive Preview */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left Column: Composer Controls */}
         <form
           onSubmit={handleRequestSendConfirmation}
-          className="lg:col-span-7 bg-white border border-stone-200 p-5 sm:p-7 space-y-6"
+          className="lg:col-span-7 bg-white border border-stone-200 p-6 sm:p-8 space-y-6"
         >
-          {/* Step 1: Who gets the email */}
+          {/* 1. Recipient Target Mode */}
           <div className="space-y-3">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600">
-              1. Who Should Get This Email?
+            <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500">
+              1. Recipient Audience
             </label>
             <div className="grid grid-cols-3 gap-2">
               <button
@@ -611,7 +595,7 @@ export const AdminEmailPage: React.FC = () => {
                     : 'bg-stone-50 text-stone-700 border-stone-200 hover:border-stone-900'
                 }`}
               >
-                One Person
+                Individual Customer
               </button>
               <button
                 type="button"
@@ -622,7 +606,7 @@ export const AdminEmailPage: React.FC = () => {
                     : 'bg-stone-50 text-stone-700 border-stone-200 hover:border-stone-900'
                 }`}
               >
-                Selected People
+                Selected Customers
               </button>
               <button
                 type="button"
@@ -637,10 +621,12 @@ export const AdminEmailPage: React.FC = () => {
               </button>
             </div>
 
+            {/* Customer Picker for Individual or Selected Mode */}
             {usersDirectory.length > 0 && mode !== 'all' && (
-              <div className="border border-stone-200 bg-stone-50 p-3 max-h-40 overflow-y-auto space-y-1.5">
-                <p className="text-[11px] font-medium text-stone-500 mb-1.5">
-                  Tap customers below to pick them:
+              <div className="border border-stone-200 bg-stone-50 p-3.5 max-h-44 overflow-y-auto space-y-1.5">
+                <p className="text-[11px] font-medium text-stone-500 mb-2">
+                  Click registered customers to include/exclude (each receives their
+                  own custom name via <code className="font-mono">{'{Name}'}</code>):
                 </p>
                 {usersDirectory.map((u) => {
                   const active = recipients.includes(u.email);
@@ -672,6 +658,7 @@ export const AdminEmailPage: React.FC = () => {
               </div>
             )}
 
+            {/* Editable Recipients Box */}
             <div className="space-y-2">
               <div className="flex gap-2">
                 <input
@@ -684,7 +671,7 @@ export const AdminEmailPage: React.FC = () => {
                       handleAddRecipient();
                     }
                   }}
-                  placeholder="Or type an email address here..."
+                  placeholder="Add recipient email address (e.g. customer@example.com)..."
                   className="flex-1 px-3.5 py-2 border border-stone-300 text-xs focus:outline-none focus:border-stone-900"
                 />
                 <button
@@ -697,10 +684,10 @@ export const AdminEmailPage: React.FC = () => {
                 </button>
               </div>
 
-              <div className="min-h-[38px] p-2 border border-stone-200 bg-stone-50 flex flex-wrap gap-1.5 items-center">
+              <div className="min-h-[42px] p-2.5 border border-stone-200 bg-stone-50 flex flex-wrap gap-1.5 items-center">
                 {recipients.length === 0 ? (
                   <span className="text-xs text-stone-400">
-                    No email selected yet.
+                    No recipients selected. Add or select at least one recipient above.
                   </span>
                 ) : (
                   recipients.map((email) => {
@@ -729,11 +716,11 @@ export const AdminEmailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Step 2: Subject Line */}
-          <div className="space-y-2.5">
+          {/* 2. Quick Templates & Subject Line */}
+          <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600">
-                2. Email Subject
+              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500">
+                2. Subject &amp; Template (Supports {'{Name}'})
               </label>
               <div className="flex flex-wrap gap-1.5">
                 {EMAIL_TEMPLATES.map((tpl) => (
@@ -757,26 +744,31 @@ export const AdminEmailPage: React.FC = () => {
               required
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder="Email subject line"
+              placeholder="Email Subject Line (use {Name} for customer name)"
               className="w-full px-3.5 py-2.5 border border-stone-300 text-sm font-medium focus:outline-none focus:border-stone-900"
             />
           </div>
 
-          {/* Step 3: Message Body with {Name} */}
+          {/* 3. Rich-Text Formatting Toolbar & Body Editor with {name} / {Name} / {NAME} Support */}
           <div className="space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600">
-                3. Write Message
+              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500">
+                3. Message Body &amp; Rich-Text Formatting
               </label>
-              <span className="text-[11px] text-stone-600">
-                Tap <strong>+ {'{Name}'}</strong> to insert customer&apos;s own name
+              <span className="text-[11px] text-stone-700 font-medium">
+                Tip: Use <code className="font-mono bg-stone-200 px-1">{'{name}'}</code>,{' '}
+                <code className="font-mono bg-stone-200 px-1">{'{Name}'}</code>, or{' '}
+                <code className="font-mono bg-stone-200 px-1">{'{NAME}'}</code> to
+                personalize each customer&apos;s email!
               </span>
             </div>
 
             <div className="flex flex-wrap items-center gap-1.5 p-2 bg-stone-100 border border-stone-300 border-b-0">
+              {/* Dynamic Name Placeholder Buttons */}
               <button
                 type="button"
                 onClick={() => insertRichTag('', '', '{Name}')}
+                title="Insert Customer Name (Title Case)"
                 className="px-2.5 py-1 bg-stone-950 text-white text-[11px] font-mono font-medium hover:bg-stone-800 inline-flex items-center gap-1 cursor-pointer"
               >
                 <Sparkles className="w-3 h-3" />
@@ -785,6 +777,7 @@ export const AdminEmailPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => insertRichTag('', '', '{name}')}
+                title="Insert Customer Name (lowercase)"
                 className="px-2 py-1 bg-white border border-stone-300 hover:border-stone-900 text-[11px] font-mono text-stone-800 cursor-pointer"
               >
                 + {'{name}'}
@@ -792,6 +785,7 @@ export const AdminEmailPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => insertRichTag('', '', '{NAME}')}
+                title="Insert Customer Name (UPPERCASE)"
                 className="px-2 py-1 bg-white border border-stone-300 hover:border-stone-900 text-[11px] font-mono text-stone-800 cursor-pointer"
               >
                 + {'{NAME}'}
@@ -802,7 +796,7 @@ export const AdminEmailPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => insertRichTag('\n<strong>', '</strong>', 'Bold Text')}
-                title="Bold"
+                title="Insert Bold"
                 className="p-1.5 bg-white border border-stone-200 hover:border-stone-900 text-stone-800 cursor-pointer"
               >
                 <Bold className="w-3.5 h-3.5" />
@@ -810,7 +804,7 @@ export const AdminEmailPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => insertRichTag('\n<em>', '</em>', 'Italic Text')}
-                title="Italic"
+                title="Insert Italic"
                 className="p-1.5 bg-white border border-stone-200 hover:border-stone-900 text-stone-800 cursor-pointer"
               >
                 <Italic className="w-3.5 h-3.5" />
@@ -818,7 +812,7 @@ export const AdminEmailPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => insertRichTag('\n<u>', '</u>', 'Underlined Text')}
-                title="Underline"
+                title="Insert Underline"
                 className="p-1.5 bg-white border border-stone-200 hover:border-stone-900 text-stone-800 cursor-pointer"
               >
                 <Underline className="w-3.5 h-3.5" />
@@ -829,10 +823,10 @@ export const AdminEmailPage: React.FC = () => {
                   insertRichTag(
                     '\n<h3 style="font-family: Georgia, serif; color: #111111;">',
                     '</h3>',
-                    'Heading'
+                    'Section Heading'
                   )
                 }
-                title="Heading"
+                title="Insert Heading"
                 className="p-1.5 bg-white border border-stone-200 hover:border-stone-900 text-stone-800 cursor-pointer"
               >
                 <Heading2 className="w-3.5 h-3.5" />
@@ -840,34 +834,53 @@ export const AdminEmailPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() =>
-                  insertRichTag('\n<ul>\n  <li>', '</li>\n</ul>', 'Item')
+                  insertRichTag(
+                    '\n<ul>\n  <li>',
+                    '</li>\n</ul>',
+                    'Showroom highlight item'
+                  )
                 }
-                title="List"
+                title="Insert Bullet List"
                 className="p-1.5 bg-white border border-stone-200 hover:border-stone-900 text-stone-800 cursor-pointer"
               >
                 <List className="w-3.5 h-3.5" />
               </button>
+              <button
+                type="button"
+                onClick={() =>
+                  insertRichTag(
+                    '\n<p><a href="https://www.instagram.com/shingar_dresses/" style="display:inline-block;padding:10px 18px;background:#111111;color:#ffffff;text-decoration:none;font-size:12px;">',
+                    '</a></p>',
+                    'Follow @shingar_dresses on Instagram'
+                  )
+                }
+                title="Insert Call-to-Action Link"
+                className="px-2.5 py-1 bg-white border border-stone-200 hover:border-stone-900 text-[11px] font-medium text-stone-800 inline-flex items-center gap-1 cursor-pointer"
+              >
+                <LinkIcon className="w-3 h-3" />
+                <span>Insert Store Button</span>
+              </button>
             </div>
 
             <textarea
-              rows={9}
+              rows={10}
               required
               value={htmlBody}
               onChange={(e) => setHtmlBody(e.target.value)}
-              placeholder="Write your email message here..."
+              placeholder="Write your email content here. Use {Name}, {name}, or {NAME} anywhere to automatically insert each recipient's custom name..."
               className="w-full px-3.5 py-3 border border-stone-300 text-xs font-mono leading-relaxed focus:outline-none focus:border-stone-900"
             />
           </div>
 
-          {/* Step 4: Attach Photo/File (Optional) */}
-          <div className="space-y-2.5">
+          {/* 4. Attachments */}
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600">
-                4. Attach Photo or File (Optional)
+              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500">
+                4. File Attachments ({attachments.length})
               </label>
               <label className="px-3.5 py-1.5 border border-stone-300 bg-stone-50 text-xs font-medium text-stone-800 hover:border-stone-900 inline-flex items-center gap-1.5 cursor-pointer">
                 <Paperclip className="w-3.5 h-3.5" />
-                <span>Add File</span>
+                <span>Attach Poster / File</span>
                 <input
                   type="file"
                   multiple
@@ -889,11 +902,14 @@ export const AdminEmailPage: React.FC = () => {
                       <span className="font-medium text-stone-900 truncate">
                         {att.filename}
                       </span>
+                      <span className="text-stone-400 font-mono">
+                        ({Math.max(1, Math.round(att.sizeBytes / 1024))} KB)
+                      </span>
                     </div>
                     <button
                       type="button"
                       onClick={() => removeAttachment(att.id)}
-                      className="text-stone-400 hover:text-stone-900 cursor-pointer"
+                      className="text-stone-400 hover:text-rose-900 cursor-pointer"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -903,17 +919,21 @@ export const AdminEmailPage: React.FC = () => {
             )}
           </div>
 
-          {/* Send Button */}
+          {/* 5. Submit via Admin Gmail */}
           <div className="pt-4 border-t border-stone-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <span className="text-xs text-stone-600">
-              Sending from <strong className="text-stone-900 font-mono">{activeSenderEmail}</strong> to{' '}
-              <strong className="text-stone-900">{recipients.length}</strong> person(s)
+            <span className="text-xs text-stone-500">
+              Ready to send personalized emails to{' '}
+              <strong className="text-stone-900">{recipients.length}</strong>{' '}
+              customer(s)
+              {attachments.length > 0
+                ? ` · ${attachments.length} attachment(s)`
+                : ''}
             </span>
 
             <button
               type="submit"
               disabled={sending || recipients.length === 0}
-              className={`inline-flex items-center justify-center gap-2 px-6 py-3 text-xs sm:text-sm font-medium transition-colors ${
+              className={`inline-flex items-center justify-center gap-2 px-6 py-3 text-xs font-medium transition-colors ${
                 recipients.length > 0 && !sending
                   ? 'bg-stone-950 text-white hover:bg-stone-800 cursor-pointer'
                   : 'bg-stone-200 text-stone-500 cursor-not-allowed'
@@ -922,58 +942,66 @@ export const AdminEmailPage: React.FC = () => {
               <Send className="w-3.5 h-3.5" />
               <span>
                 {sending
-                  ? `Sending (${sendProgress.sent}/${sendProgress.total})...`
-                  : `Send Email (${recipients.length})`}
+                  ? `Sending via Gmail (${sendProgress.sent}/${sendProgress.total})...`
+                  : gmailAccessToken
+                    ? `Send Personalized Email via Gmail (${recipients.length})`
+                    : `Authorize Gmail & Send (${recipients.length})`}
               </span>
             </button>
           </div>
         </form>
 
-        {/* Right Column: Live Email Preview */}
-        <div className="lg:col-span-5 bg-white border border-stone-200 p-5 space-y-4 sticky top-24">
-          <div className="flex items-center justify-between border-b border-stone-200 pb-3">
+        {/* Right Column: Live Personalized Email Preview */}
+        <div className="lg:col-span-5 bg-white border border-stone-200 p-6 space-y-4 sticky top-24">
+          <div className="flex items-center justify-between border-b border-stone-200 pb-4">
             <div>
-              <h2 className="font-serif text-xl text-stone-950">Email Preview</h2>
-              <p className="text-xs text-stone-500">How the customer will see it</p>
+              <h2 className="font-serif text-2xl text-stone-950">
+                Live Personalized Preview
+              </h2>
+              <p className="text-xs text-stone-500">
+                See how <code className="font-mono text-stone-900">{'{Name}'}</code>{' '}
+                renders for each customer
+              </p>
             </div>
 
             <div className="flex items-center gap-1 border border-stone-200 p-1 bg-stone-50">
               <button
                 type="button"
                 onClick={() => setPreviewDevice('desktop')}
-                className={`px-2.5 py-1 text-xs font-medium inline-flex items-center gap-1 cursor-pointer ${
+                className={`px-2.5 py-1.5 text-xs font-medium inline-flex items-center gap-1 cursor-pointer ${
                   previewDevice === 'desktop'
                     ? 'bg-stone-950 text-white'
                     : 'text-stone-600'
                 }`}
               >
                 <Monitor className="w-3.5 h-3.5" />
-                <span>Computer</span>
+                <span>Desktop</span>
               </button>
               <button
                 type="button"
                 onClick={() => setPreviewDevice('mobile')}
-                className={`px-2.5 py-1 text-xs font-medium inline-flex items-center gap-1 cursor-pointer ${
+                className={`px-2.5 py-1.5 text-xs font-medium inline-flex items-center gap-1 cursor-pointer ${
                   previewDevice === 'mobile'
                     ? 'bg-stone-950 text-white'
                     : 'text-stone-600'
                 }`}
               >
                 <Smartphone className="w-3.5 h-3.5" />
-                <span>Phone</span>
+                <span>Mobile</span>
               </button>
             </div>
           </div>
 
+          {/* Recipient Switcher for Previewing {Name} */}
           {recipients.length > 0 && (
             <div className="flex items-center justify-between gap-2 bg-stone-100 border border-stone-300 px-3 py-2 text-xs">
               <span className="text-stone-900 font-medium shrink-0">
-                Preview for:
+                Previewing as Customer:
               </span>
               <select
                 value={activePreviewEmail}
                 onChange={(e) => setPreviewRecipientEmail(e.target.value)}
-                className="bg-white border border-stone-300 px-2 py-1 text-xs text-stone-900 font-medium focus:outline-none max-w-[220px] truncate"
+                className="bg-white border border-stone-300 px-2.5 py-1 text-xs text-stone-900 font-medium focus:outline-none max-w-[230px] truncate"
               >
                 {recipients.map((rEmail) => (
                   <option key={rEmail} value={rEmail}>
@@ -984,11 +1012,12 @@ export const AdminEmailPage: React.FC = () => {
             </div>
           )}
 
-          <div className="bg-stone-50 border border-stone-200 p-3 space-y-1 text-xs">
+          {/* Email Metadata Header Preview */}
+          <div className="bg-stone-50 border border-stone-200 p-3.5 space-y-1.5 text-xs">
             <p className="truncate">
               <span className="text-stone-500">From:</span>{' '}
-              <strong className="text-stone-900 font-mono">
-                {activeSenderEmail}
+              <strong className="text-stone-900">
+                Shingar Dresses &lt;{user?.email || AUTHORIZED_ADMIN_EMAIL}&gt;
               </strong>
             </p>
             <p className="truncate">
@@ -998,99 +1027,115 @@ export const AdminEmailPage: React.FC = () => {
               </span>
             </p>
             <p className="truncate">
-              <span className="text-stone-500">Subject:</span>{' '}
-              <strong className="text-stone-900">{previewSubject}</strong>
+              <span className="text-stone-500">Personalized Subject:</span>{' '}
+              <strong className="text-stone-900">
+                {previewSubject || '(No subject)'}
+              </strong>
             </p>
           </div>
 
-          <div className="bg-stone-100 border border-stone-200 p-3 flex justify-center overflow-x-auto">
+          {/* Viewport Container */}
+          <div className="bg-stone-100 border border-stone-200 p-4 flex justify-center overflow-x-auto">
             <div
               className={`transition-all duration-200 ${
-                previewDevice === 'mobile' ? 'w-[320px]' : 'w-full'
+                previewDevice === 'mobile' ? 'w-[340px]' : 'w-full'
               }`}
             >
               <div
                 dangerouslySetInnerHTML={{ __html: previewCompiledHtml }}
                 className="text-left"
               />
+
+              {attachments.length > 0 && (
+                <div className="mt-3 bg-white border border-stone-200 p-3 space-y-1.5 text-xs">
+                  <p className="font-semibold text-stone-700">
+                    Attached Files ({attachments.length}):
+                  </p>
+                  {attachments.map((att) => (
+                    <div
+                      key={att.id}
+                      className="flex items-center justify-between text-stone-600 font-mono text-[11px]"
+                    >
+                      <span className="truncate">{att.filename}</span>
+                      <span>{Math.max(1, Math.round(att.sizeBytes / 1024))} KB</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Recent Sent Emails Log */}
-      {sentHistory.length > 0 && (
-        <div className="bg-white border border-stone-200 p-5 sm:p-6 space-y-4">
-          <div className="flex items-center justify-between border-b border-stone-200 pb-3">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-stone-700" />
-              <h2 className="font-serif text-xl text-stone-950">
-                Recently Sent Emails ({sentHistory.length})
-              </h2>
-            </div>
-          </div>
-          <div className="divide-y divide-stone-200 max-h-64 overflow-y-auto">
-            {sentHistory.slice(0, 12).map((item) => (
-              <div
-                key={item.id}
-                className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
-              >
-                <div className="space-y-0.5">
-                  <p className="font-semibold text-stone-900">{item.subject}</p>
-                  <p className="text-stone-600">
-                    From <span className="font-mono text-stone-900">{item.senderEmail}</span>{' '}
-                    → To{' '}
-                    <span className="font-mono text-stone-900">
-                      {item.recipients.join(', ')}
-                    </span>
-                  </p>
-                </div>
-                <span className="font-mono text-[11px] text-stone-500 shrink-0">
-                  {new Date(item.sentAt).toLocaleString()}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Simple Confirmation Modal */}
+      {/* Explicit Confirmation Modal Before Sending via Gmail API */}
       {confirmModalOpen && (
         <div
           className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4"
           onClick={() => setConfirmModalOpen(false)}
         >
           <div
-            className="bg-white border border-stone-200 max-w-md w-full p-6 space-y-5 shadow-2xl"
+            className="bg-white border border-stone-200 max-w-lg w-full p-6 sm:p-8 space-y-5 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="font-serif text-2xl text-stone-950">
-              Send Email Now?
-            </h2>
-            <p className="text-sm text-stone-600">
-              This will send your email to{' '}
-              <strong className="text-stone-900">{recipients.length}</strong>{' '}
-              customer(s) from{' '}
-              <strong className="font-mono text-xs text-stone-900">
-                {activeSenderEmail}
-              </strong>
-              .
-            </p>
+            <div className="flex items-center justify-between border-b border-stone-200 pb-3">
+              <div className="flex items-center gap-2 text-stone-900 text-xs font-semibold uppercase tracking-wider">
+                <Mail className="w-4 h-4" />
+                <span>Confirm Outbound Gmail Dispatch</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setConfirmModalOpen(false)}
+                className="text-stone-400 hover:text-stone-900"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs text-stone-700">
+              <p className="text-sm text-stone-900 font-medium">
+                You are about to send{' '}
+                <strong>{recipients.length} personalized email(s)</strong> directly
+                from your Gmail account (
+                <span className="font-mono">{user?.email || AUTHORIZED_ADMIN_EMAIL}</span>
+                ).
+              </p>
+
+              <div className="bg-stone-50 border border-stone-200 p-3.5 space-y-1.5">
+                <p>
+                  <span className="text-stone-500">Sender Account:</span>{' '}
+                  <strong className="font-mono text-stone-900">
+                    {user?.email || AUTHORIZED_ADMIN_EMAIL}
+                  </strong>
+                </p>
+                <p>
+                  <span className="text-stone-500">Recipients ({recipients.length}):</span>{' '}
+                  <span className="font-mono text-stone-800">
+                    {recipients.slice(0, 4).join(', ')}
+                    {recipients.length > 4 ? ` +${recipients.length - 4} more` : ''}
+                  </span>
+                </p>
+                <p>
+                  <span className="text-stone-500">Sample Personalized Subject:</span>{' '}
+                  <strong className="text-stone-900">{previewSubject}</strong>
+                </p>
+              </div>
+            </div>
+
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setConfirmModalOpen(false)}
-                className="px-4 py-2 border border-stone-300 text-xs font-medium text-stone-700 cursor-pointer"
+                className="px-4 py-2.5 border border-stone-300 text-xs font-medium text-stone-700 hover:border-stone-900 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={executeGmailSend}
-                className="px-5 py-2.5 bg-stone-950 text-white text-xs font-medium hover:bg-stone-800 cursor-pointer inline-flex items-center gap-1.5"
+                className="px-5 py-2.5 bg-stone-950 text-white text-xs font-medium hover:bg-stone-800 inline-flex items-center gap-2 cursor-pointer"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>Yes, Send Email</span>
+                <span>Confirm &amp; Send Now</span>
               </button>
             </div>
           </div>

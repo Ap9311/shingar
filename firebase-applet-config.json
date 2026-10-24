@@ -1,10 +1,12 @@
 {
-  "apiKey": "AIzaSyDMcrNUsM5sYr38C8GED6F62ogLOdlWc7E",
-  "authDomain": "shingar-dresses.firebaseapp.com",
-  "projectId": "shingar-dresses",
-  "storageBucket": "shingar-dresses.firebasestorage.app",
-  "messagingSenderId": "972086210279",
-  "appId": "1:972086210279:web:5ec9706083bae6a089bc42",
-  "measurementId": "G-MS68TWKHEP",
-  "firestoreDatabaseId": "shingar"
+  "projectId": "obsidian-507319",
+  "appId": "1:853430734342:web:7082327d482ea73f353d87",
+  "apiKey": "AIzaSyD4aRmmu8PB41s8-E2uPrnA2wWrs56i16I",
+  "authDomain": "obsidian-507319.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-8d67d777-a297-4845-86c4-0aa372caa579",
+  "storageBucket": "obsidian-507319.firebasestorage.app",
+  "messagingSenderId": "853430734342",
+  "measurementId": "",
+  "oAuthClientId": "853430734342-sd1kqvtkdqecajtu40jnibl1r2p9pvo3.apps.googleusercontent.com",
+  "recaptchaSiteKey": ""
 }
