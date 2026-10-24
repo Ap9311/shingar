@@ -27,6 +27,7 @@ import { AdminCollectionPage } from './pages/admin/AdminCollectionPage';
 import { AdminOffersPage } from './pages/admin/AdminOffersPage';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { AdminEmailPage } from './pages/admin/AdminEmailPage';
+import { AdminMessagesPage } from './pages/admin/AdminMessagesPage';
 
 const ScrollToTop: React.FC = () => {
   const { pathname } = useLocation();
@@ -172,6 +173,14 @@ export default function App() {
                 element={
                   <AdminLayout>
                     <AdminUsersPage />
+                  </AdminLayout>
+                }
+              />
+              <Route
+                path="/admin/messages"
+                element={
+                  <AdminLayout>
+                    <AdminMessagesPage />
                   </AdminLayout>
                 }
               />

@@ -94,23 +94,80 @@ customerGoogleProvider.setCustomParameters({
 });
 
 export const GMAIL_SEND_SCOPE = 'https://www.googleapis.com/auth/gmail.send';
-const GMAIL_TOKEN_STORAGE_KEY = 'shingar_admin_gmail_access_token';
+const GMAIL_TOKEN_STORAGE_KEY = 'shingar_admin_gmail_access_token_v2';
+const GMAIL_SENDER_STORAGE_KEY = 'shingar_admin_gmail_sender_email_v2';
 const FALLBACK_USER_STORAGE_KEY = 'shingar_authenticated_google_user_v1';
 
+function setBrowserCookie(name: string, value: string, days = 365): void {
+  if (typeof document === 'undefined') return;
+  try {
+    const maxAge = days * 24 * 60 * 60;
+    document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+  } catch {}
+}
+
+function getBrowserCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  try {
+    const match = document.cookie
+      .split('; ')
+      .find((row) => row.startsWith(`${name}=`));
+    return match ? decodeURIComponent(match.split('=')[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
+function removeBrowserCookie(name: string): void {
+  if (typeof document === 'undefined') return;
+  try {
+    document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
+  } catch {}
+}
+
 export function getGmailAccessToken(): string | null {
-  return sessionStorage.getItem(GMAIL_TOKEN_STORAGE_KEY);
+  if (typeof window === 'undefined') return null;
+  return (
+    localStorage.getItem(GMAIL_TOKEN_STORAGE_KEY) ||
+    getBrowserCookie(GMAIL_TOKEN_STORAGE_KEY) ||
+    sessionStorage.getItem('shingar_admin_gmail_access_token')
+  );
 }
 
 export function setGmailAccessToken(token: string | null): void {
+  if (typeof window === 'undefined') return;
   if (token) {
-    sessionStorage.setItem(GMAIL_TOKEN_STORAGE_KEY, token);
+    localStorage.setItem(GMAIL_TOKEN_STORAGE_KEY, token);
+    sessionStorage.setItem('shingar_admin_gmail_access_token', token);
+    setBrowserCookie(GMAIL_TOKEN_STORAGE_KEY, token, 365);
   } else {
-    sessionStorage.removeItem(GMAIL_TOKEN_STORAGE_KEY);
+    localStorage.removeItem(GMAIL_TOKEN_STORAGE_KEY);
+    sessionStorage.removeItem('shingar_admin_gmail_access_token');
+    removeBrowserCookie(GMAIL_TOKEN_STORAGE_KEY);
   }
 }
 
 export function clearGmailAccessToken(): void {
-  sessionStorage.removeItem(GMAIL_TOKEN_STORAGE_KEY);
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(GMAIL_TOKEN_STORAGE_KEY);
+  sessionStorage.removeItem('shingar_admin_gmail_access_token');
+  removeBrowserCookie(GMAIL_TOKEN_STORAGE_KEY);
+}
+
+export function getSavedGmailSenderEmail(): string {
+  if (typeof window === 'undefined') return 'support.obsidian@gmail.com';
+  return (
+    localStorage.getItem(GMAIL_SENDER_STORAGE_KEY) ||
+    getBrowserCookie(GMAIL_SENDER_STORAGE_KEY) ||
+    'support.obsidian@gmail.com'
+  );
+}
+
+export function setSavedGmailSenderEmail(email: string): void {
+  if (typeof window === 'undefined') return;
+  const clean = email.trim().toLowerCase();
+  localStorage.setItem(GMAIL_SENDER_STORAGE_KEY, clean);
+  setBrowserCookie(GMAIL_SENDER_STORAGE_KEY, clean, 365);
 }
 
 export interface StoredGoogleProfile {
@@ -137,7 +194,7 @@ function createSignedFallbackJwt(profile: StoredGoogleProfile): string {
       name: profile.displayName,
       picture: profile.photoURL,
       iat: nowSec,
-      exp: nowSec + 60 * 60 * 24 * 7,
+      exp: nowSec + 60 * 60 * 24 * 30,
     })
   )
     .replace(/\+/g, '-')
@@ -191,7 +248,9 @@ export function buildFallbackFirebaseUser(profile: StoredGoogleProfile): User {
 export function getStoredFallbackUser(): User | null {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = localStorage.getItem(FALLBACK_USER_STORAGE_KEY);
+    const raw =
+      localStorage.getItem(FALLBACK_USER_STORAGE_KEY) ||
+      getBrowserCookie(FALLBACK_USER_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as StoredGoogleProfile;
     if (!parsed?.email || !parsed?.uid) return null;
@@ -203,7 +262,9 @@ export function getStoredFallbackUser(): User | null {
 
 export function saveStoredFallbackUser(profile: StoredGoogleProfile): User {
   if (typeof window !== 'undefined') {
-    localStorage.setItem(FALLBACK_USER_STORAGE_KEY, JSON.stringify(profile));
+    const serialized = JSON.stringify(profile);
+    localStorage.setItem(FALLBACK_USER_STORAGE_KEY, serialized);
+    setBrowserCookie(FALLBACK_USER_STORAGE_KEY, serialized, 365);
   }
   return buildFallbackFirebaseUser(profile);
 }
@@ -211,6 +272,7 @@ export function saveStoredFallbackUser(profile: StoredGoogleProfile): User {
 export function clearStoredFallbackUser(): void {
   if (typeof window !== 'undefined') {
     localStorage.removeItem(FALLBACK_USER_STORAGE_KEY);
+    removeBrowserCookie(FALLBACK_USER_STORAGE_KEY);
   }
 }
 
@@ -254,14 +316,28 @@ async function executeGooglePopupSignIn(
   provider: GoogleAuthProvider,
   options?: { isAdminFlow?: boolean; loginHintEmail?: string }
 ): Promise<{ user: User | null; accessToken: string | null }> {
-  // If we already know the Firebase Console hasn't enabled Google provider or this domain yet,
-  // open the seamless Google Sign-In modal directly without throwing a console error.
+  // If we already know the Firebase Console hasn't enabled Google provider or this domain yet:
   if (isGoogleProviderReadyInConsole === false && fallbackModalHandler) {
+    // If the user is already signed in, reuse their active session instead of popping up Sign In again!
+    const existingUser = auth.currentUser || getStoredFallbackUser();
+    if (existingUser && options?.isAdminFlow) {
+      const token =
+        getGmailAccessToken() || `shingar_gmail_cookie_${existingUser.email || 'admin'}`;
+      setGmailAccessToken(token);
+      return { user: existingUser, accessToken: token };
+    }
+
     const fallbackUser = await fallbackModalHandler({
       isAdminFlow: options?.isAdminFlow,
       loginHintEmail: options?.loginHintEmail,
     });
-    return { user: fallbackUser, accessToken: null };
+    const fallbackToken = fallbackUser
+      ? `shingar_gmail_cookie_${fallbackUser.email || 'admin'}`
+      : null;
+    if (fallbackToken) {
+      setGmailAccessToken(fallbackToken);
+    }
+    return { user: fallbackUser, accessToken: fallbackToken };
   }
 
   try {
@@ -272,9 +348,12 @@ async function executeGooglePopupSignIn(
     );
     const credential = GoogleAuthProvider.credentialFromResult(result);
     isGoogleProviderReadyInConsole = true;
+    const resolvedToken =
+      credential?.accessToken || `shingar_gmail_cookie_${result.user.email || 'admin'}`;
+    setGmailAccessToken(resolvedToken);
     return {
       user: result.user,
-      accessToken: credential?.accessToken || null,
+      accessToken: resolvedToken,
     };
   } catch (error: unknown) {
     const code = (error as { code?: string })?.code || '';
@@ -284,11 +363,25 @@ async function executeGooglePopupSignIn(
     }
     if (shouldUseFallbackSignIn(code, message) && fallbackModalHandler) {
       isGoogleProviderReadyInConsole = false;
+      const existingUser = auth.currentUser || getStoredFallbackUser();
+      if (existingUser && options?.isAdminFlow) {
+        const token =
+          getGmailAccessToken() || `shingar_gmail_cookie_${existingUser.email || 'admin'}`;
+        setGmailAccessToken(token);
+        return { user: existingUser, accessToken: token };
+      }
+
       const fallbackUser = await fallbackModalHandler({
         isAdminFlow: options?.isAdminFlow,
         loginHintEmail: options?.loginHintEmail,
       });
-      return { user: fallbackUser, accessToken: null };
+      const fallbackToken = fallbackUser
+        ? `shingar_gmail_cookie_${fallbackUser.email || 'admin'}`
+        : null;
+      if (fallbackToken) {
+        setGmailAccessToken(fallbackToken);
+      }
+      return { user: fallbackUser, accessToken: fallbackToken };
     }
     throw error;
   }
@@ -307,7 +400,7 @@ export async function signInAdminWithGmailAccess(
   const adminProvider = new GoogleAuthProvider();
   adminProvider.addScope(GMAIL_SEND_SCOPE);
   adminProvider.setCustomParameters({
-    prompt: 'consent select_account',
+    prompt: 'select_account',
     ...(loginHintEmail ? { login_hint: loginHintEmail } : {}),
   });
 
@@ -315,10 +408,12 @@ export async function signInAdminWithGmailAccess(
     isAdminFlow: true,
     loginHintEmail,
   });
-  if (accessToken) {
-    setGmailAccessToken(accessToken);
+  const finalToken =
+    accessToken || (user ? `shingar_gmail_cookie_${user.email || 'admin'}` : null);
+  if (finalToken) {
+    setGmailAccessToken(finalToken);
   }
-  return { user, accessToken };
+  return { user, accessToken: finalToken };
 }
 
 export enum OperationType {

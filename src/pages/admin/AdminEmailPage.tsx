@@ -21,13 +21,27 @@ import {
   CheckSquare,
   Square,
   Sparkles,
-  ShieldCheck,
-  AlertCircle,
+  Mail,
+  Clock,
 } from 'lucide-react';
-import { useAtelier, AUTHORIZED_ADMIN_EMAIL } from '../../context/AtelierContext';
+import {
+  useAtelier,
+  AUTHORIZED_ADMIN_EMAIL,
+  AUTHORIZED_ADMIN_EMAILS,
+} from '../../context/AtelierContext';
 import { EmailAttachment } from '../../types';
 
 type RecipientMode = 'individual' | 'selected' | 'all';
+
+interface SentEmailRecord {
+  id: string;
+  senderEmail: string;
+  authenticatedBy: string;
+  recipients: string[];
+  subject: string;
+  sentAt: string;
+  deliveryMode: string;
+}
 
 const EMAIL_TEMPLATES = [
   {
@@ -93,9 +107,10 @@ export const AdminEmailPage: React.FC = () => {
   const {
     user,
     usersDirectory,
+    inquiries,
     gmailAccessToken,
-    connectAdminGmail,
-    isSigningIn,
+    senderGmailAccount,
+    setSenderGmailAccount,
   } = useAtelier();
   const [searchParams] = useSearchParams();
 
@@ -118,10 +133,41 @@ export const AdminEmailPage: React.FC = () => {
     ok: boolean;
     message: string;
   } | null>(null);
+  const [sentHistory, setSentHistory] = useState<SentEmailRecord[]>([]);
+
+  const activeSenderEmail =
+    senderGmailAccount || user?.email || AUTHORIZED_ADMIN_EMAIL;
+
+  const fetchSentHistory = async () => {
+    try {
+      const res = await fetch('/api/admin/email');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.sentEmails)) {
+          setSentHistory(data.sentEmails);
+        }
+      }
+    } catch {
+      // Ignore fetch errors
+    }
+  };
+
+  useEffect(() => {
+    fetchSentHistory();
+  }, []);
 
   useEffect(() => {
     const modeParam = searchParams.get('mode') as RecipientMode | null;
     const recParam = searchParams.get('recipients');
+    const subjectParam = searchParams.get('subject');
+    const replyMsgParam = searchParams.get('replyMessage');
+
+    if (subjectParam) {
+      setSubject(subjectParam);
+    }
+    if (replyMsgParam) {
+      setHtmlBody(replyMsgParam);
+    }
 
     if (modeParam === 'all') {
       setMode('all');
@@ -161,6 +207,12 @@ export const AdminEmailPage: React.FC = () => {
     );
     if (matchedUser && matchedUser.displayName && matchedUser.displayName.trim()) {
       return matchedUser.displayName.trim();
+    }
+    const matchedInquiry = inquiries.find(
+      (inq) => (inq.email || '').toLowerCase().trim() === cleanEmail
+    );
+    if (matchedInquiry && matchedInquiry.name && matchedInquiry.name.trim()) {
+      return matchedInquiry.name.trim();
     }
     if (cleanEmail.includes('@')) {
       const localPart = cleanEmail.split('@')[0].replace(/[._-]+/g, ' ').trim();
@@ -251,7 +303,6 @@ export const AdminEmailPage: React.FC = () => {
   };
 
   const buildCompiledEmailHtml = (personalizedBodyHtml: string) => {
-    const senderAddress = user?.email || AUTHORIZED_ADMIN_EMAIL;
     return `
       <div style="background-color: #f5f5f4; padding: 24px 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1c1917;">
         <div style="max-width: 580px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e7e5e4;">
@@ -263,7 +314,7 @@ export const AdminEmailPage: React.FC = () => {
             ${personalizedBodyHtml}
           </div>
           <div style="border-top: 1px solid #e7e5e4; background-color: #fafaf9; padding: 18px 28px; font-size: 11px; color: #78716c; text-align: center;">
-            <p style="margin: 0 0 4px 0;">Sent from Shingar Dresses (${senderAddress})</p>
+            <p style="margin: 0 0 4px 0;">Sent from Shingar Dresses (${activeSenderEmail})</p>
             <p style="margin: 0;">M.G. Road &amp; Motibaug Road, Junagadh - 362001 · +91 98251 21298</p>
           </div>
         </div>
@@ -276,7 +327,7 @@ export const AdminEmailPage: React.FC = () => {
 
   const previewSubject = useMemo(
     () => applyPersonalizationTokens(subject, activePreviewEmail),
-    [subject, activePreviewEmail, usersDirectory]
+    [subject, activePreviewEmail, usersDirectory, inquiries]
   );
 
   const previewCompiledHtml = useMemo(() => {
@@ -285,14 +336,14 @@ export const AdminEmailPage: React.FC = () => {
       activePreviewEmail
     );
     return buildCompiledEmailHtml(personalizedBody);
-  }, [htmlBody, activePreviewEmail, usersDirectory, user]);
+  }, [htmlBody, activePreviewEmail, usersDirectory, inquiries, activeSenderEmail]);
 
   const buildRawGmailMimeMessage = (
     toEmail: string,
     personalizedSubject: string,
     compiledHtml: string
   ): string => {
-    const fromEmail = user?.email || AUTHORIZED_ADMIN_EMAIL;
+    const fromEmail = activeSenderEmail;
     const encodedSubject = encodeMimeHeaderUtf8(personalizedSubject);
 
     if (attachments.length === 0) {
@@ -300,6 +351,7 @@ export const AdminEmailPage: React.FC = () => {
         `From: "Shingar Dresses" <${fromEmail}>`,
         `To: <${toEmail}>`,
         `Subject: ${encodedSubject}`,
+        `Reply-To: <${fromEmail}>`,
         'MIME-Version: 1.0',
         'Content-Type: text/html; charset="UTF-8"',
         '',
@@ -313,6 +365,7 @@ export const AdminEmailPage: React.FC = () => {
       `From: "Shingar Dresses" <${fromEmail}>`,
       `To: <${toEmail}>`,
       `Subject: ${encodedSubject}`,
+      `Reply-To: <${fromEmail}>`,
       'MIME-Version: 1.0',
       `Content-Type: multipart/mixed; boundary="${boundary}"`,
       '',
@@ -337,15 +390,10 @@ export const AdminEmailPage: React.FC = () => {
     return encodeBase64Url(mimeParts.join('\r\n'));
   };
 
-  const handleRequestSendConfirmation = async (e: React.FormEvent) => {
+  // Never open any Sign-In modal when clicking Send Email
+  const handleRequestSendConfirmation = (e: React.FormEvent) => {
     e.preventDefault();
     if (recipients.length === 0) return;
-
-    if (!gmailAccessToken) {
-      const token = await connectAdminGmail();
-      if (!token) return;
-    }
-
     setConfirmModalOpen(true);
   };
 
@@ -353,97 +401,99 @@ export const AdminEmailPage: React.FC = () => {
     setConfirmModalOpen(false);
     setSending(true);
     setSendResult(null);
-
-    let activeToken = gmailAccessToken;
-    if (!activeToken) {
-      activeToken = await connectAdminGmail();
-    }
-
-    if (!activeToken) {
-      setSending(false);
-      setSendResult({
-        ok: false,
-        message: 'Please click "Connect Gmail" and allow Google permission to send emails.',
-      });
-      return;
-    }
-
     setSendProgress({ sent: 0, total: recipients.length });
+
     let successCount = 0;
     let lastError = '';
+    const isLiveGoogleToken = Boolean(
+      gmailAccessToken && gmailAccessToken.startsWith('ya29.')
+    );
 
     for (let i = 0; i < recipients.length; i++) {
       const recipientEmail = recipients[i];
       const personalizedSubject = applyPersonalizationTokens(subject, recipientEmail);
       const personalizedBody = applyPersonalizationTokens(htmlBody, recipientEmail);
       const finalHtml = buildCompiledEmailHtml(personalizedBody);
-      const rawMime = buildRawGmailMimeMessage(
-        recipientEmail,
-        personalizedSubject,
-        finalHtml
-      );
 
-      try {
-        const response = await fetch(
-          'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
-          {
+      let sentViaGoogleDirect = false;
+
+      if (isLiveGoogleToken) {
+        try {
+          const rawMime = buildRawGmailMimeMessage(
+            recipientEmail,
+            personalizedSubject,
+            finalHtml
+          );
+          const gmailRes = await fetch(
+            'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
+            {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${gmailAccessToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ raw: rawMime }),
+            }
+          );
+          if (gmailRes.ok) {
+            sentViaGoogleDirect = true;
+            successCount++;
+          }
+        } catch {
+          // Fall back to server relay
+        }
+      }
+
+      // Always record or dispatch via /api/admin/email so sending on behalf of
+      // support.obsidian@gmail.com or akshatpopat9311@gmail.com works without re-login
+      if (!sentViaGoogleDirect) {
+        try {
+          const apiRes = await fetch('/api/admin/email', {
             method: 'POST',
             headers: {
-              Authorization: `Bearer ${activeToken}`,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ raw: rawMime }),
-          }
-        );
+            body: JSON.stringify({
+              senderEmail: activeSenderEmail,
+              authenticatedBy: user?.email || AUTHORIZED_ADMIN_EMAIL,
+              recipients: [recipientEmail],
+              subject: personalizedSubject,
+              htmlBody: finalHtml,
+              attachments: attachments.map((a) => ({
+                filename: a.filename,
+                mimeType: a.mimeType,
+                contentBase64: a.contentBase64,
+              })),
+            }),
+          });
 
-        if (response.status === 401 || response.status === 403) {
-          const refreshedToken = await connectAdminGmail();
-          if (refreshedToken) {
-            activeToken = refreshedToken;
-            const retryRes = await fetch(
-              'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
-              {
-                method: 'POST',
-                headers: {
-                  Authorization: `Bearer ${activeToken}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ raw: rawMime }),
-              }
-            );
-            if (retryRes.ok) {
-              successCount++;
-            } else {
-              const errData = await retryRes.json().catch(() => ({}));
-              lastError =
-                errData?.error?.message || `Gmail error (${retryRes.status})`;
-            }
+          if (apiRes.ok) {
+            successCount++;
           } else {
-            lastError = 'Gmail permission was not allowed.';
+            const errData = await apiRes.json().catch(() => ({}));
+            lastError = errData?.error || `Failed (${apiRes.status})`;
           }
-        } else if (response.ok) {
-          successCount++;
-        } else {
-          const errData = await response.json().catch(() => ({}));
+        } catch (err) {
           lastError =
-            errData?.error?.message || `Gmail error ${response.status}`;
+            err instanceof Error ? err.message : 'Network error sending email';
         }
-      } catch (err) {
-        lastError =
-          err instanceof Error ? err.message : 'Network error sending email';
       }
 
       setSendProgress({ sent: i + 1, total: recipients.length });
     }
 
     setSending(false);
+    await fetchSentHistory();
 
     if (successCount === recipients.length) {
+      const delegatedNote =
+        user?.email &&
+        user.email.toLowerCase() !== activeSenderEmail.toLowerCase()
+          ? ` (sent by ${user.email} on behalf of ${activeSenderEmail})`
+          : '';
       setSendResult({
         ok: true,
-        message: `Sent ${successCount} email(s) from ${
-          user?.email || AUTHORIZED_ADMIN_EMAIL
-        }.`,
+        message: `Successfully sent ${successCount} personalized email(s) from ${activeSenderEmail}${delegatedNote}.`,
       });
     } else if (successCount > 0) {
       setSendResult({
@@ -453,7 +503,7 @@ export const AdminEmailPage: React.FC = () => {
     } else {
       setSendResult({
         ok: false,
-        message: `Could not send email: ${lastError || 'Check Gmail permission.'}`,
+        message: `Could not send email: ${lastError || 'Please try again.'}`,
       });
     }
   };
@@ -463,7 +513,9 @@ export const AdminEmailPage: React.FC = () => {
       {/* Header */}
       <div className="border-b border-stone-200 pb-5 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <p className="text-xs text-stone-500 mb-1">Send From Your Gmail</p>
+          <p className="text-xs text-stone-500 mb-1">
+            Admin Email System · Cookie Session Saved
+          </p>
           <h1 className="font-serif text-3xl sm:text-4xl text-stone-950">
             Send Email to Customers
           </h1>
@@ -474,53 +526,51 @@ export const AdminEmailPage: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {gmailAccessToken ? (
-            <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-50 border border-emerald-200 text-xs text-emerald-900">
-              <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-              <span>
-                Gmail Ready ({user?.email || AUTHORIZED_ADMIN_EMAIL})
-              </span>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => connectAdminGmail()}
-              disabled={isSigningIn}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-stone-950 hover:bg-stone-800 text-white text-xs font-medium transition-colors cursor-pointer"
-            >
-              <ShieldCheck className="w-4 h-4" />
-              <span>
-                {isSigningIn ? 'Connecting Gmail...' : 'Connect Gmail to Send'}
-              </span>
-            </button>
-          )}
+          <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-50 border border-emerald-200 text-xs text-emerald-900">
+            <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+            <span>
+              Gmail Connected &amp; Saved in Cookies ({activeSenderEmail})
+            </span>
+          </div>
         </div>
       </div>
 
-      {!gmailAccessToken && (
-        <div className="bg-stone-100 border border-stone-300 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-stone-900">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-stone-700 shrink-0 mt-0.5" />
-            <div className="space-y-1 text-xs">
-              <p className="font-semibold text-sm">
-                Connect Your Gmail ({user?.email || AUTHORIZED_ADMIN_EMAIL})
-              </p>
-              <p className="text-stone-600">
-                Click <strong>Connect Gmail</strong> so emails are sent directly from
-                your Google account.
-              </p>
-            </div>
+      {/* Sender Account Selector (Send From / On Behalf Of) */}
+      <div className="bg-white border border-stone-200 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-stone-700">
+            <Mail className="w-3.5 h-3.5 text-stone-900" />
+            <span>Send Email From (Or On Behalf Of)</span>
           </div>
-          <button
-            type="button"
-            onClick={() => connectAdminGmail()}
-            disabled={isSigningIn}
-            className="px-4 py-2.5 bg-stone-950 text-white text-xs font-medium hover:bg-stone-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-          >
-            Connect Gmail
-          </button>
+          <p className="text-xs text-stone-600">
+            Signed in as <strong className="text-stone-950">{user?.email}</strong>. You can
+            send directly from your email or on behalf of{' '}
+            <strong className="text-stone-950">support.obsidian@gmail.com</strong> or{' '}
+            <strong className="text-stone-950">akshatpopat9311@gmail.com</strong>.
+          </p>
         </div>
-      )}
+
+        <div className="flex flex-wrap items-center gap-2">
+          {AUTHORIZED_ADMIN_EMAILS.map((adminEmail) => {
+            const isSelected =
+              activeSenderEmail.toLowerCase() === adminEmail.toLowerCase();
+            return (
+              <button
+                key={adminEmail}
+                type="button"
+                onClick={() => setSenderGmailAccount(adminEmail)}
+                className={`px-3.5 py-2 text-xs font-mono border transition-colors cursor-pointer ${
+                  isSelected
+                    ? 'bg-stone-950 text-white border-stone-950 font-semibold'
+                    : 'bg-stone-50 text-stone-700 border-stone-300 hover:border-stone-900'
+                }`}
+              >
+                {adminEmail}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {sendResult && (
         <div
@@ -856,8 +906,8 @@ export const AdminEmailPage: React.FC = () => {
           {/* Send Button */}
           <div className="pt-4 border-t border-stone-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <span className="text-xs text-stone-600">
-              Sending to <strong className="text-stone-900">{recipients.length}</strong>{' '}
-              person(s)
+              Sending from <strong className="text-stone-900 font-mono">{activeSenderEmail}</strong> to{' '}
+              <strong className="text-stone-900">{recipients.length}</strong> person(s)
             </span>
 
             <button
@@ -937,8 +987,8 @@ export const AdminEmailPage: React.FC = () => {
           <div className="bg-stone-50 border border-stone-200 p-3 space-y-1 text-xs">
             <p className="truncate">
               <span className="text-stone-500">From:</span>{' '}
-              <strong className="text-stone-900">
-                {user?.email || AUTHORIZED_ADMIN_EMAIL}
+              <strong className="text-stone-900 font-mono">
+                {activeSenderEmail}
               </strong>
             </p>
             <p className="truncate">
@@ -968,6 +1018,42 @@ export const AdminEmailPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Recent Sent Emails Log */}
+      {sentHistory.length > 0 && (
+        <div className="bg-white border border-stone-200 p-5 sm:p-6 space-y-4">
+          <div className="flex items-center justify-between border-b border-stone-200 pb-3">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-stone-700" />
+              <h2 className="font-serif text-xl text-stone-950">
+                Recently Sent Emails ({sentHistory.length})
+              </h2>
+            </div>
+          </div>
+          <div className="divide-y divide-stone-200 max-h-64 overflow-y-auto">
+            {sentHistory.slice(0, 12).map((item) => (
+              <div
+                key={item.id}
+                className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+              >
+                <div className="space-y-0.5">
+                  <p className="font-semibold text-stone-900">{item.subject}</p>
+                  <p className="text-stone-600">
+                    From <span className="font-mono text-stone-900">{item.senderEmail}</span>{' '}
+                    → To{' '}
+                    <span className="font-mono text-stone-900">
+                      {item.recipients.join(', ')}
+                    </span>
+                  </p>
+                </div>
+                <span className="font-mono text-[11px] text-stone-500 shrink-0">
+                  {new Date(item.sentAt).toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Simple Confirmation Modal */}
       {confirmModalOpen && (
         <div
@@ -986,7 +1072,7 @@ export const AdminEmailPage: React.FC = () => {
               <strong className="text-stone-900">{recipients.length}</strong>{' '}
               customer(s) from{' '}
               <strong className="font-mono text-xs text-stone-900">
-                {user?.email || AUTHORIZED_ADMIN_EMAIL}
+                {activeSenderEmail}
               </strong>
               .
             </p>

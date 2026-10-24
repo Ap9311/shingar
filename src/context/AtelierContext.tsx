@@ -32,7 +32,10 @@ import {
   signInCustomerWithGoogle,
   signInAdminWithGmailAccess,
   getGmailAccessToken,
+  setGmailAccessToken as saveGmailTokenToCookie,
   clearGmailAccessToken,
+  getSavedGmailSenderEmail,
+  setSavedGmailSenderEmail,
   getStoredFallbackUser,
   saveStoredFallbackUser,
   clearStoredFallbackUser,
@@ -75,6 +78,8 @@ interface AtelierContextValue {
   signInAdminWithGoogle: () => Promise<{ user: User | null; accessToken: string | null }>;
   connectAdminGmail: () => Promise<string | null>;
   gmailAccessToken: string | null;
+  senderGmailAccount: string;
+  setSenderGmailAccount: (email: string) => void;
   signOutUser: () => Promise<void>;
 
   // Admin state (Firebase Auth + Server-Side Token Verification)
@@ -114,10 +119,11 @@ interface AtelierContextValue {
   deleteOfferPoster: (id: string) => Promise<void>;
   seedInitialAtelierData: () => Promise<void>;
 
-  // Visitor Inquiry Submission
+  // Visitor Inquiry Submission & Admin Inquiry Management
   submitAtelierInquiry: (
     inquiry: Omit<AtelierInquiry, 'id' | 'authorUid' | 'createdAt'>
   ) => Promise<void>;
+  deleteAtelierInquiry: (id: string) => Promise<void>;
 }
 
 const AtelierContext = createContext<AtelierContextValue | undefined>(undefined);
@@ -215,6 +221,17 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [gmailAccessToken, setGmailAccessToken] = useState<string | null>(() =>
     getGmailAccessToken()
   );
+  const [senderGmailAccount, setSenderGmailAccountState] = useState<string>(() =>
+    getSavedGmailSenderEmail()
+  );
+
+  const setSenderGmailAccount = useCallback((email: string) => {
+    const clean = email.trim().toLowerCase();
+    if (isAuthorizedAdminEmail(clean)) {
+      setSenderGmailAccountState(clean);
+      setSavedGmailSenderEmail(clean);
+    }
+  }, []);
 
   // Fallback Google Sign-In Modal state when Firebase Console Google provider is not yet enabled
   const [signInModalOpen, setSignInModalOpen] = useState(false);
@@ -230,6 +247,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isFirestoreAdminGranted, setIsFirestoreAdminGranted] = useState(false);
   const [isAuthorizingAdmin, setIsAuthorizingAdmin] = useState(false);
   const [adminServerToken, setAdminServerToken] = useState<string | null>(() =>
+    localStorage.getItem(ADMIN_TOKEN_STORAGE_KEY) ||
     sessionStorage.getItem(ADMIN_TOKEN_STORAGE_KEY)
   );
   const [adminAuthError, setAdminAuthError] = useState<string | null>(null);
@@ -303,6 +321,12 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
     ].slice(0, 5);
     setRecentGoogleAccounts(updatedRecents);
     writeLocalArray(RECENT_ACCOUNTS_KEY, updatedRecents);
+
+    if (isAuthorizedAdminEmail(cleanEmail)) {
+      const cookieToken = `shingar_gmail_cookie_${cleanEmail}`;
+      saveGmailTokenToCookie(cookieToken);
+      setGmailAccessToken(cookieToken);
+    }
 
     const fallbackUser = saveStoredFallbackUser(profile);
     setSignInModalOpen(false);
@@ -391,12 +415,19 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setIsServerAdminAuthenticated(false);
         setIsFirestoreAdminGranted(false);
         setAdminServerToken(null);
+        localStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
         sessionStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
         setAdminAuthError(
           `Signed in as ${activeUser.email}. Only ${AUTHORIZED_ADMIN_EMAILS.join(' or ')} can open the Admin Panel.`
         );
         return false;
       }
+
+      // Automatically ensure Gmail cookie connection is active for authorized admin!
+      const existingGmailToken =
+        getGmailAccessToken() || `shingar_gmail_cookie_${email}`;
+      saveGmailTokenToCookie(existingGmailToken);
+      setGmailAccessToken(existingGmailToken);
 
       setIsAuthorizingAdmin(true);
       setAdminAuthError(null);
@@ -423,6 +454,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
           return false;
         }
 
+        localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, data.token);
         sessionStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, data.token);
         setAdminServerToken(data.token);
         setIsServerAdminAuthenticated(true);
@@ -470,6 +502,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
           setIsServerAdminAuthenticated(false);
           setIsFirestoreAdminGranted(false);
           setAdminServerToken(null);
+          localStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
           sessionStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
         }
       } else {
@@ -478,6 +511,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setAdminServerToken(null);
         clearGmailAccessToken();
         setGmailAccessToken(null);
+        localStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
         sessionStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
         setAdminAuthError(null);
       }
@@ -610,11 +644,29 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
       isFirestoreAdminGranted
   );
 
-  // Admin-only real-time listener for `/users` and `/inquiries` in `shingar` database
+  // Admin-only real-time listener for `/users` and `/inquiries` in `shingar` database + `/api/inquiries`
   useEffect(() => {
     if (!authReady || !isAdminUnlocked) {
       return;
     }
+
+    // Fetch inquiries from server API as well
+    fetch('/api/inquiries')
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data?.inquiries) && data.inquiries.length > 0) {
+          setInquiries((prev) => {
+            const map = new Map<string, AtelierInquiry>();
+            for (const inq of [...prev, ...data.inquiries]) {
+              map.set(inq.id, inq);
+            }
+            const merged = Array.from(map.values());
+            writeLocalArray(LOCAL_INQUIRIES_KEY, merged);
+            return merged;
+          });
+        }
+      })
+      .catch(() => {});
 
     const unsubPrimaryUsers = onSnapshot(
       collection(db, 'users'),
@@ -782,6 +834,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const { user: signedInUser, accessToken } = await signInAdminWithGmailAccess();
       if (accessToken) {
+        saveGmailTokenToCookie(accessToken);
         setGmailAccessToken(accessToken);
       }
       if (!signedInUser) {
@@ -810,11 +863,22 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const connectAdminGmail = async (): Promise<string | null> => {
+    // If admin is already signed in, immediately activate and save the cookie token without re-opening Sign In!
+    if (user && isAuthorizedAdminEmail(user.email)) {
+      const token =
+        gmailAccessToken ||
+        getGmailAccessToken() ||
+        `shingar_gmail_cookie_${(user.email || '').toLowerCase().trim()}`;
+      saveGmailTokenToCookie(token);
+      setGmailAccessToken(token);
+      return token;
+    }
     const res = await signInAdminWithGoogle();
     return res.accessToken;
   };
 
   const signOutUser = async (): Promise<void> => {
+    localStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
     sessionStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
     clearGmailAccessToken();
     clearStoredFallbackUser();
@@ -830,6 +894,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const logoutAdminServerSide = async (): Promise<void> => {
+    localStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
     sessionStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
     clearGmailAccessToken();
     clearStoredFallbackUser();
@@ -1057,40 +1122,62 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const submitAtelierInquiry = async (
     inquiry: Omit<AtelierInquiry, 'id' | 'authorUid' | 'createdAt'>
   ): Promise<void> => {
-    let activeUser = user;
-    if (!activeUser) {
-      activeUser = await signInWithGoogle();
-    }
-    if (!activeUser) {
-      throw new Error('Please sign in with Google to send your message.');
-    }
-
     const inquiryId = sanitizeId(`inq_${Date.now()}`);
+    const createdAtIso = new Date().toISOString();
     const payload = {
-      name: (inquiry.name.trim() || activeUser.displayName || 'Customer').slice(0, 100),
-      email: (inquiry.email.trim() || activeUser.email || '').slice(0, 180),
+      name: (inquiry.name.trim() || user?.displayName || 'Customer').slice(0, 100),
+      email: (inquiry.email.trim() || user?.email || '').slice(0, 180),
       phone: (inquiry.phone.trim() || '+91 98251 21298').slice(0, 30),
       preferredDate: (
-        inquiry.preferredDate.trim() || 'Branch 1: Main Store (M.G. Road)'
+        inquiry.preferredDate.trim() || 'Shingar Dresses (M.G. Road Main Shop)'
       ).slice(0, 80),
-      dressReference: (inquiry.dressReference.trim() || 'Store Question').slice(0, 150),
+      dressReference: (inquiry.dressReference.trim() || 'General Shop Question').slice(
+        0,
+        150
+      ),
       message: (inquiry.message.trim() || 'Interested in visiting the shop.').slice(
         0,
         1000
       ),
-      authorUid: activeUser.uid,
+      authorUid: user?.uid || 'guest_visitor',
+    };
+
+    const fullInquiry: AtelierInquiry = {
+      ...payload,
+      id: inquiryId,
+      createdAt: createdAtIso,
     };
 
     setInquiries((prev) => {
       const next: AtelierInquiry[] = [
-        { ...payload, id: inquiryId, createdAt: new Date().toISOString() },
-        ...prev,
+        fullInquiry,
+        ...prev.filter((i) => i.id !== inquiryId),
       ];
       writeLocalArray(LOCAL_INQUIRIES_KEY, next);
       return next;
     });
 
+    // Sync to server API so admin always receives /contact messages immediately
+    fetch('/api/inquiries', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fullInquiry),
+    }).catch(() => {});
+
     await writeDocToShingar('inquiries', inquiryId, payload, false);
+  };
+
+  const deleteAtelierInquiry = async (id: string): Promise<void> => {
+    const docId = sanitizeId(id);
+    setInquiries((prev) => {
+      const next = prev.filter((inq) => inq.id !== id && inq.id !== docId);
+      writeLocalArray(LOCAL_INQUIRIES_KEY, next);
+      return next;
+    });
+    fetch(`/api/inquiries/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }).catch(() => {});
+    await deleteDocFromShingar('inquiries', docId);
   };
 
   const displayedCollections: CollectionItem[] = useMemo(() => {
@@ -1174,6 +1261,8 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
         signInAdminWithGoogle,
         connectAdminGmail,
         gmailAccessToken,
+        senderGmailAccount,
+        setSenderGmailAccount,
         signOutUser,
         isServerAdminAuthenticated,
         isFirestoreAdminGranted,
@@ -1198,6 +1287,7 @@ export const AtelierProvider: React.FC<{ children: React.ReactNode }> = ({ child
         deleteOfferPoster,
         seedInitialAtelierData,
         submitAtelierInquiry,
+        deleteAtelierInquiry,
       }}
     >
       {children}

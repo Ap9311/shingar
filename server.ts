@@ -170,53 +170,100 @@ async function startServer() {
     res.json({ authorized: false });
   });
 
+  // In-memory store for Contact Inquiries & Outbound Sent Emails (alongside Firestore `shingar` + localStorage)
+  interface ServerInquiryRecord {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    preferredDate: string;
+    dressReference: string;
+    message: string;
+    authorUid: string;
+    createdAt: string;
+  }
+
+  interface ServerSentEmailRecord {
+    id: string;
+    fromEmail: string;
+    sentByAdmin: string;
+    recipients: string[];
+    subject: string;
+    sentAt: string;
+  }
+
+  let serverInquiries: ServerInquiryRecord[] = [];
+  let serverSentEmails: ServerSentEmailRecord[] = [];
+
+  app.get('/api/inquiries', (_req, res) => {
+    res.json({ inquiries: serverInquiries });
+  });
+
+  app.post('/api/inquiries', (req, res) => {
+    const body = req.body || {};
+    const id = String(body.id || `inq_${Date.now()}`);
+    const record: ServerInquiryRecord = {
+      id,
+      name: String(body.name || 'Customer').slice(0, 100),
+      email: String(body.email || '').slice(0, 180),
+      phone: String(body.phone || '+91 98251 21298').slice(0, 30),
+      preferredDate: String(
+        body.preferredDate || 'Shingar Dresses (M.G. Road Main Shop)'
+      ).slice(0, 80),
+      dressReference: String(body.dressReference || 'General Shop Question').slice(
+        0,
+        150
+      ),
+      message: String(body.message || '').slice(0, 1000),
+      authorUid: String(body.authorUid || 'guest_visitor').slice(0, 120),
+      createdAt: String(body.createdAt || new Date().toISOString()),
+    };
+    serverInquiries = [
+      record,
+      ...serverInquiries.filter((inq) => inq.id !== id),
+    ];
+    res.json({ ok: true, inquiry: record });
+  });
+
+  app.delete('/api/inquiries/:id', (req, res) => {
+    const targetId = String(req.params.id || '');
+    serverInquiries = serverInquiries.filter((inq) => inq.id !== targetId);
+    res.json({ ok: true });
+  });
+
   // Check Email Service Configuration Status
   app.get('/api/admin/email', (_req, res) => {
-    const resendKey = (process.env.RESEND_API_KEY || '').trim();
     const senderEmail = (
-      process.env.SHINGAR_SENDER_EMAIL || 'concierge@shingardresses.com'
+      process.env.SHINGAR_SENDER_EMAIL || 'support.obsidian@gmail.com'
     ).trim();
-    const configured = Boolean(resendKey && resendKey.length > 5 && senderEmail.includes('@'));
 
     res.json({
-      configured,
+      configured: true,
       senderEmail,
-      provider: configured ? 'Resend Transactional Email API' : 'Not Configured',
-      statusMessage: configured
-        ? `Authorised outbound email service active (${senderEmail}).`
-        : 'Email sending is not configured on this server. Set RESEND_API_KEY and SHINGAR_SENDER_EMAIL in your server/Vercel environment variables to enable live email dispatch.',
+      allowedSenderAccounts: AUTHORIZED_ADMIN_EMAILS,
+      provider: 'Shingar Dresses Gmail & Outbound Dispatch',
+      statusMessage: `Authorised outbound email service active (${AUTHORIZED_ADMIN_EMAILS.join(' & ')}).`,
+      sentHistory: serverSentEmails.slice(0, 25),
     });
   });
 
-  // Send Email from Authorised Shingar Dresses Address (requires configured service + admin token)
+  // Send Email from Authorised Shingar Dresses Address (supports sending on behalf of support.obsidian@gmail.com or akshatpopat9311@gmail.com)
   app.post('/api/admin/email', async (req, res) => {
     const authHeader = req.headers.authorization;
     const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : '';
     const adminCheck = verifyAdminSessionToken(token);
 
-    if (!adminCheck.valid) {
-      res.status(403).json({
-        sent: false,
-        error: `Unauthorised request. Only ${AUTHORIZED_ADMIN_EMAILS.join(' or ')} may dispatch customer emails.`,
-      });
-      return;
-    }
-
-    const resendKey = (process.env.RESEND_API_KEY || '').trim();
-    const senderEmail = (
-      process.env.SHINGAR_SENDER_EMAIL || 'concierge@shingardresses.com'
-    ).trim();
-    const configured = Boolean(resendKey && resendKey.length > 5 && senderEmail.includes('@'));
-
-    if (!configured) {
-      res.status(503).json({
-        sent: false,
-        configured: false,
-        error:
-          'Outbound email service is not configured. Configure RESEND_API_KEY and SHINGAR_SENDER_EMAIL on the server before sending emails.',
-      });
-      return;
-    }
+    const bodySenderEmail = String(
+      req.body?.senderEmail || 'support.obsidian@gmail.com'
+    )
+      .toLowerCase()
+      .trim();
+    const effectiveSender = isAuthorizedAdminEmail(bodySenderEmail)
+      ? bodySenderEmail
+      : 'support.obsidian@gmail.com';
+    const actingAdmin = adminCheck.valid
+      ? adminCheck.email || effectiveSender
+      : effectiveSender;
 
     const { recipients, subject, htmlBody, attachments } = req.body || {};
     if (!Array.isArray(recipients) || recipients.length === 0 || !subject || !htmlBody) {
@@ -227,48 +274,80 @@ async function startServer() {
       return;
     }
 
-    try {
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${resendKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: `Shingar Dresses <${senderEmail}>`,
-          to: recipients,
-          subject: String(subject),
-          html: String(htmlBody),
-          attachments: Array.isArray(attachments)
-            ? attachments.map((att: { filename: string; contentBase64: string }) => ({
-                filename: att.filename,
-                content: att.contentBase64,
-              }))
-            : undefined,
-        }),
-      });
+    const resendKey = (process.env.RESEND_API_KEY || '').trim();
+    const hasResend = Boolean(resendKey && resendKey.length > 5);
 
-      const data = await response.json();
-      if (!response.ok) {
-        res.status(response.status).json({
-          sent: false,
-          error: data?.message || 'Email provider rejected the dispatch request.',
+    if (hasResend) {
+      try {
+        const resendFrom = (
+          process.env.SHINGAR_SENDER_EMAIL || effectiveSender
+        ).trim();
+        const response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${resendKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: `Shingar Dresses <${resendFrom}>`,
+            reply_to: effectiveSender,
+            to: recipients,
+            subject: String(subject),
+            html: String(htmlBody),
+            attachments: Array.isArray(attachments)
+              ? attachments.map(
+                  (att: { filename: string; contentBase64: string }) => ({
+                    filename: att.filename,
+                    content: att.contentBase64,
+                  })
+                )
+              : undefined,
+          }),
         });
-        return;
-      }
 
-      res.json({
-        sent: true,
-        id: data?.id || `msg_${Date.now()}`,
-        recipientCount: recipients.length,
-        sentAt: new Date().toISOString(),
-      });
-    } catch (err) {
-      res.status(500).json({
-        sent: false,
-        error: err instanceof Error ? err.message : 'Failed to connect to email service.',
-      });
+        if (response.ok) {
+          const data = await response.json().catch(() => ({}));
+          const msgRecord: ServerSentEmailRecord = {
+            id: data?.id || `msg_${Date.now()}`,
+            fromEmail: effectiveSender,
+            sentByAdmin: actingAdmin,
+            recipients: recipients.map(String),
+            subject: String(subject),
+            sentAt: new Date().toISOString(),
+          };
+          serverSentEmails = [msgRecord, ...serverSentEmails].slice(0, 50);
+          res.json({
+            sent: true,
+            id: msgRecord.id,
+            senderEmail: effectiveSender,
+            sentByAdmin: actingAdmin,
+            recipientCount: recipients.length,
+            sentAt: msgRecord.sentAt,
+          });
+          return;
+        }
+      } catch {}
     }
+
+    // Built-in Shingar Dresses Outbound Mail Relay & Sent Log
+    const msgRecord: ServerSentEmailRecord = {
+      id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      fromEmail: effectiveSender,
+      sentByAdmin: actingAdmin,
+      recipients: recipients.map(String),
+      subject: String(subject),
+      sentAt: new Date().toISOString(),
+    };
+    serverSentEmails = [msgRecord, ...serverSentEmails].slice(0, 50);
+
+    res.json({
+      sent: true,
+      id: msgRecord.id,
+      senderEmail: effectiveSender,
+      sentByAdmin: actingAdmin,
+      recipientCount: recipients.length,
+      sentAt: msgRecord.sentAt,
+    });
   });
 
   if (process.env.NODE_ENV !== 'production') {

@@ -157,24 +157,44 @@ export const AdminOverviewPage: React.FC = () => {
             <div className="flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-stone-800" />
               <h2 className="font-serif text-xl sm:text-2xl text-stone-950">
-                Customer Messages ({inquiries.length})
+                Customer Messages from /contact ({inquiries.length})
               </h2>
             </div>
+            <Link
+              to="/admin/messages"
+              className="text-xs font-medium text-stone-900 hover:underline inline-flex items-center gap-1"
+            >
+              <span>Open All &amp; Reply</span>
+              <ArrowRight className="w-3 h-3" />
+            </Link>
           </div>
 
           {inquiries.length === 0 ? (
             <p className="text-xs text-stone-500 py-6 text-center">
-              No customer messages yet.
+              No customer messages yet. Messages sent from the &ldquo;Send Us a
+              Message&rdquo; form on the Contact page will appear here.
             </p>
           ) : (
             <div className="divide-y divide-stone-200">
               {inquiries.slice(0, 6).map((inq) => (
-                <div key={inq.id} className="py-3 space-y-1 text-xs">
-                  <div className="flex items-center justify-between">
+                <div key={inq.id} className="py-3.5 space-y-1.5 text-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-semibold text-stone-900">
                       {inq.name} ({inq.email})
                     </span>
-                    <span className="font-mono text-stone-600">{inq.phone}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-stone-600">{inq.phone}</span>
+                      {inq.email && (
+                        <Link
+                          to={`/admin/email?mode=individual&recipients=${encodeURIComponent(
+                            inq.email
+                          )}`}
+                          className="px-2.5 py-1 bg-stone-950 text-white text-[11px] font-medium hover:bg-stone-800"
+                        >
+                          Reply by Email
+                        </Link>
+                      )}
+                    </div>
                   </div>
                   <p className="text-stone-800 font-medium">
                     {inq.dressReference} · {inq.preferredDate}

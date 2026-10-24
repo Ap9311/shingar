@@ -11,6 +11,7 @@ import {
   Tag,
   Users,
   Mail,
+  MessageSquare,
   LogOut,
   ShieldCheck,
   ShieldAlert,
@@ -29,6 +30,7 @@ const ADMIN_NAV = [
   { path: '/admin/collection', label: 'Clothes & Categories', icon: Shirt, exact: false },
   { path: '/admin/offers', label: 'Store Offers', icon: Tag, exact: false },
   { path: '/admin/users', label: 'Customers', icon: Users, exact: false },
+  { path: '/admin/messages', label: 'Customer Messages', icon: MessageSquare, exact: false },
   { path: '/admin/email', label: 'Send Email', icon: Mail, exact: false },
 ];
 
@@ -42,6 +44,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
     isAdminUnlocked,
     adminAuthError,
     gmailAccessToken,
+    inquiries,
     signInAdminWithGoogle,
     connectAdminGmail,
     signOutUser,
@@ -234,6 +237,8 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
           {ADMIN_NAV.map((item) => {
             const Icon = item.icon;
             const active = isNavActive(item.path, item.exact);
+            const showCount =
+              item.path === '/admin/messages' && inquiries.length > 0;
             return (
               <Link
                 key={item.path}
@@ -246,6 +251,11 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
               >
                 <Icon className="w-3.5 h-3.5" />
                 <span>{item.label}</span>
+                {showCount && (
+                  <span className="px-1.5 py-0.5 text-[10px] font-mono bg-stone-700 text-white">
+                    {inquiries.length}
+                  </span>
+                )}
               </Link>
             );
           })}
