@@ -16,11 +16,9 @@ function formatTimestamp(ts: unknown): string {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
     });
   }
-  return 'Verified via Google';
+  return 'Signed In';
 }
 
 export const AdminUsersPage: React.FC = () => {
@@ -35,8 +33,7 @@ export const AdminUsersPage: React.FC = () => {
     return usersDirectory.filter(
       (u) =>
         u.displayName.toLowerCase().includes(q) ||
-        u.email.toLowerCase().includes(q) ||
-        u.uid.toLowerCase().includes(q)
+        u.email.toLowerCase().includes(q)
     );
   }, [usersDirectory, searchQuery]);
 
@@ -64,23 +61,20 @@ export const AdminUsersPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-stone-200 pb-6">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-stone-200 pb-5">
         <div>
-          <p className="text-xs text-stone-600 uppercase tracking-widest font-medium mb-1">
-            Google Sign-In Customer Registry
-          </p>
+          <p className="text-xs text-stone-500 mb-1">Google Sign-In List</p>
           <h1 className="font-serif text-3xl sm:text-4xl text-stone-950">
-            Registered Customers ({usersDirectory.length})
+            Customers ({usersDirectory.length})
           </h1>
           <p className="text-xs text-stone-500 mt-1">
-            View customer names, verified Google email addresses, profile photos, and
-            account activity.
+            People who signed in with Google on your website.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           {selectedEmails.length > 0 && (
             <button
               type="button"
@@ -109,7 +103,7 @@ export const AdminUsersPage: React.FC = () => {
             type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Filter by customer name, email, or UID..."
+            placeholder="Search customer name or email..."
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-stone-300 text-sm focus:outline-none focus:border-stone-900"
           />
         </div>
@@ -127,36 +121,33 @@ export const AdminUsersPage: React.FC = () => {
             )}
             <span>
               {selectedEmails.length === filteredUsers.length
-                ? 'Deselect All'
-                : 'Select All Shown'}
+                ? 'Unselect All'
+                : 'Select All'}
             </span>
           </button>
         )}
       </div>
 
-      {/* Customers Table */}
+      {/* Customers List */}
       <div className="bg-white border border-stone-200 overflow-x-auto">
         {filteredUsers.length === 0 ? (
-          <div className="p-12 text-center space-y-2">
+          <div className="p-10 text-center space-y-2">
             <Users className="w-6 h-6 text-stone-400 mx-auto" />
-            <p className="font-serif text-2xl text-stone-900">
-              No matching customer accounts found
-            </p>
+            <p className="font-serif text-2xl text-stone-900">No customers found</p>
             <p className="text-xs text-stone-500">
-              Customers who sign in with Google on the website automatically appear in
-              this directory.
+              When customers sign in with Google on the website, their name and email
+              will show here.
             </p>
           </div>
         ) : (
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-stone-200 bg-stone-50 text-[11px] font-semibold uppercase tracking-wider text-stone-500">
-                <th className="py-3.5 px-4 w-10">Select</th>
-                <th className="py-3.5 px-4">Customer Profile</th>
-                <th className="py-3.5 px-4">Verified Email</th>
-                <th className="py-3.5 px-4">Account UID</th>
-                <th className="py-3.5 px-4">Last Sign-In</th>
-                <th className="py-3.5 px-4 text-right">Action</th>
+                <th className="py-3 px-4 w-10">Pick</th>
+                <th className="py-3 px-4">Customer Name</th>
+                <th className="py-3 px-4">Email</th>
+                <th className="py-3 px-4">Last Visit</th>
+                <th className="py-3 px-4 text-right">Email</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-200 text-xs">
@@ -169,7 +160,7 @@ export const AdminUsersPage: React.FC = () => {
                       isSelected ? 'bg-stone-100' : ''
                     }`}
                   >
-                    <td className="py-4 px-4">
+                    <td className="py-3.5 px-4">
                       <button
                         type="button"
                         onClick={() => toggleSelectEmail(customer.email)}
@@ -183,44 +174,35 @@ export const AdminUsersPage: React.FC = () => {
                       </button>
                     </td>
 
-                    <td className="py-4 px-4">
+                    <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">
                         {customer.photoURL ? (
                           <img
                             src={customer.photoURL}
                             alt={customer.displayName}
                             referrerPolicy="no-referrer"
-                            className="w-9 h-9 rounded-full object-cover border border-stone-200 shrink-0"
+                            className="w-8 h-8 rounded-full object-cover border border-stone-200 shrink-0"
                           />
                         ) : (
-                          <div className="w-9 h-9 rounded-full bg-stone-900 text-white flex items-center justify-center font-medium shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-stone-900 text-white flex items-center justify-center font-medium shrink-0">
                             {(customer.displayName || customer.email || 'C')[0].toUpperCase()}
                           </div>
                         )}
-                        <div>
-                          <p className="font-semibold text-stone-900">
-                            {customer.displayName}
-                          </p>
-                          <p className="text-[11px] text-stone-500">
-                            Google Authenticated
-                          </p>
-                        </div>
+                        <p className="font-semibold text-stone-900">
+                          {customer.displayName}
+                        </p>
                       </div>
                     </td>
 
-                    <td className="py-4 px-4 font-mono text-stone-800">
+                    <td className="py-3.5 px-4 font-mono text-stone-800">
                       {customer.email}
                     </td>
 
-                    <td className="py-4 px-4 font-mono text-stone-500 tabular-nums">
-                      {customer.uid}
-                    </td>
-
-                    <td className="py-4 px-4 text-stone-600 tabular-nums">
+                    <td className="py-3.5 px-4 text-stone-600">
                       {formatTimestamp(customer.lastLoginAt)}
                     </td>
 
-                    <td className="py-4 px-4 text-right">
+                    <td className="py-3.5 px-4 text-right">
                       <Link
                         to={`/admin/email?mode=individual&recipients=${encodeURIComponent(
                           customer.email

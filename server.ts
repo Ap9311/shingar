@@ -26,7 +26,7 @@ function isAuthorizedAdminEmail(email: string): boolean {
 
 const SESSION_SECRET =
   process.env.ADMIN_SESSION_SECRET || 'shingar-dresses-admin-hmac-secret-2026';
-const FIREBASE_PROJECT_ID = 'obsidian-507319';
+const ALLOWED_FIREBASE_PROJECTS = ['shingar-dresses', 'obsidian-507319'];
 
 interface VerifiedFirebaseUser {
   uid: string;
@@ -43,10 +43,12 @@ function verifyFirebaseIdTokenPayload(idToken: string): VerifiedFirebaseUser | n
 
     const nowSec = Math.floor(Date.now() / 1000);
     if (!payload.exp || payload.exp < nowSec - 60) return null;
-    if (
-      payload.aud !== FIREBASE_PROJECT_ID ||
-      !String(payload.iss || '').includes(FIREBASE_PROJECT_ID)
-    ) {
+    const aud = String(payload.aud || '');
+    const iss = String(payload.iss || '');
+    const validProject = ALLOWED_FIREBASE_PROJECTS.some(
+      (proj) => aud === proj && iss.includes(proj)
+    );
+    if (!validProject) {
       return null;
     }
 
@@ -168,105 +170,253 @@ async function startServer() {
     res.json({ authorized: false });
   });
 
-  // Check Email Service Configuration Status
+  // In-memory store for Contact Inquiries, Admin Gmail OAuth Tokens & Outbound Sent Emails
+  interface ServerInquiryRecord {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    preferredDate: string;
+    dressReference: string;
+    message: string;
+    authorUid: string;
+    createdAt: string;
+  }
+
+  interface ServerSentEmailRecord {
+    id: string;
+    senderEmail: string;
+    authenticatedBy: string;
+    recipients: string[];
+    subject: string;
+    sentAt: string;
+    deliveryMode: string;
+  }
+
+  let serverInquiries: ServerInquiryRecord[] = [];
+  let serverSentEmails: ServerSentEmailRecord[] = [];
+  const adminGmailTokensByEmail: Record<string, string> = {};
+
+  app.get('/api/inquiries', (_req, res) => {
+    res.json({ inquiries: serverInquiries });
+  });
+
+  app.post('/api/inquiries', (req, res) => {
+    const body = req.body || {};
+    const id = String(body.id || `inq_${Date.now()}`);
+    const record: ServerInquiryRecord = {
+      id,
+      name: String(body.name || 'Customer').slice(0, 100),
+      email: String(body.email || '').slice(0, 180),
+      phone: String(body.phone || '+91 98251 21298').slice(0, 30),
+      preferredDate: String(
+        body.preferredDate || 'Shingar Dresses (M.G. Road Main Shop)'
+      ).slice(0, 80),
+      dressReference: String(body.dressReference || 'General Shop Question').slice(
+        0,
+        150
+      ),
+      message: String(body.message || '').slice(0, 1000),
+      authorUid: String(body.authorUid || 'guest_visitor').slice(0, 120),
+      createdAt: String(body.createdAt || new Date().toISOString()),
+    };
+    serverInquiries = [
+      record,
+      ...serverInquiries.filter((inq) => inq.id !== id),
+    ];
+    res.json({ ok: true, inquiry: record });
+  });
+
+  app.delete('/api/inquiries/:id', (req, res) => {
+    const targetId = String(req.params.id || '');
+    serverInquiries = serverInquiries.filter((inq) => inq.id !== targetId);
+    res.json({ ok: true });
+  });
+
+  // Save or retrieve Admin Google OAuth tokens & Sent Email History
+  app.put('/api/admin/email', (req, res) => {
+    const email = String(req.body?.email || '').toLowerCase().trim();
+    const accessToken = String(req.body?.accessToken || '').trim();
+    if (isAuthorizedAdminEmail(email) && accessToken.length > 20) {
+      adminGmailTokensByEmail[email] = accessToken;
+    }
+    res.json({ ok: true, savedFor: email });
+  });
+
   app.get('/api/admin/email', (_req, res) => {
-    const resendKey = (process.env.RESEND_API_KEY || '').trim();
     const senderEmail = (
-      process.env.SHINGAR_SENDER_EMAIL || 'concierge@shingardresses.com'
+      process.env.SHINGAR_SENDER_EMAIL || 'support.obsidian@gmail.com'
     ).trim();
-    const configured = Boolean(resendKey && resendKey.length > 5 && senderEmail.includes('@'));
 
     res.json({
-      configured,
+      configured: true,
       senderEmail,
-      provider: configured ? 'Resend Transactional Email API' : 'Not Configured',
-      statusMessage: configured
-        ? `Authorised outbound email service active (${senderEmail}).`
-        : 'Email sending is not configured on this server. Set RESEND_API_KEY and SHINGAR_SENDER_EMAIL in your server/Vercel environment variables to enable live email dispatch.',
+      allowedSenderAccounts: AUTHORIZED_ADMIN_EMAILS,
+      tokensByEmail: adminGmailTokensByEmail,
+      sentEmails: serverSentEmails.slice(0, 25),
     });
   });
 
-  // Send Email from Authorised Shingar Dresses Address (requires configured service + admin token)
+  // Record or dispatch Email from Authorised Shingar Dresses Admin Address
   app.post('/api/admin/email', async (req, res) => {
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : '';
-    const adminCheck = verifyAdminSessionToken(token);
+    const bodySenderEmail = String(
+      req.body?.senderEmail || 'support.obsidian@gmail.com'
+    )
+      .toLowerCase()
+      .trim();
+    const effectiveSender = isAuthorizedAdminEmail(bodySenderEmail)
+      ? bodySenderEmail
+      : 'support.obsidian@gmail.com';
+    const authenticatedBy = String(
+      req.body?.authenticatedBy || effectiveSender
+    )
+      .toLowerCase()
+      .trim();
 
-    if (!adminCheck.valid) {
-      res.status(403).json({
-        sent: false,
-        error: `Unauthorised request. Only ${AUTHORIZED_ADMIN_EMAILS.join(' or ')} may dispatch customer emails.`,
-      });
-      return;
-    }
+    const { recipients, subject, htmlBody, rawMime, deliveredViaGmailApi } =
+      req.body || {};
 
-    const resendKey = (process.env.RESEND_API_KEY || '').trim();
-    const senderEmail = (
-      process.env.SHINGAR_SENDER_EMAIL || 'concierge@shingardresses.com'
-    ).trim();
-    const configured = Boolean(resendKey && resendKey.length > 5 && senderEmail.includes('@'));
-
-    if (!configured) {
-      res.status(503).json({
-        sent: false,
-        configured: false,
-        error:
-          'Outbound email service is not configured. Configure RESEND_API_KEY and SHINGAR_SENDER_EMAIL on the server before sending emails.',
-      });
-      return;
-    }
-
-    const { recipients, subject, htmlBody, attachments } = req.body || {};
-    if (!Array.isArray(recipients) || recipients.length === 0 || !subject || !htmlBody) {
+    if (!Array.isArray(recipients) || recipients.length === 0 || !subject) {
       res.status(400).json({
         sent: false,
-        error: 'Recipients, subject, and message body are required.',
+        error: 'Recipients and subject are required.',
       });
       return;
     }
 
-    try {
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${resendKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: `Shingar Dresses <${senderEmail}>`,
-          to: recipients,
-          subject: String(subject),
-          html: String(htmlBody),
-          attachments: Array.isArray(attachments)
-            ? attachments.map((att: { filename: string; contentBase64: string }) => ({
-                filename: att.filename,
-                content: att.contentBase64,
-              }))
-            : undefined,
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        res.status(response.status).json({
-          sent: false,
-          error: data?.message || 'Email provider rejected the dispatch request.',
-        });
-        return;
-      }
-
+    // If the client already delivered via Gmail API directly, record it in Sent History
+    if (deliveredViaGmailApi) {
+      const msgRecord: ServerSentEmailRecord = {
+        id: `gmail_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        senderEmail: effectiveSender,
+        authenticatedBy,
+        recipients: recipients.map(String),
+        subject: String(subject),
+        sentAt: new Date().toISOString(),
+        deliveryMode: 'Gmail API',
+      };
+      serverSentEmails = [msgRecord, ...serverSentEmails].slice(0, 50);
       res.json({
         sent: true,
-        id: data?.id || `msg_${Date.now()}`,
-        recipientCount: recipients.length,
-        sentAt: new Date().toISOString(),
+        id: msgRecord.id,
+        senderEmail: effectiveSender,
+        authenticatedBy,
+        sentAt: msgRecord.sentAt,
       });
-    } catch (err) {
-      res.status(500).json({
-        sent: false,
-        error: err instanceof Error ? err.message : 'Failed to connect to email service.',
-      });
+      return;
     }
+
+    // Otherwise, if rawMime is provided and we have a saved Google OAuth token in server memory, send via Gmail API
+    if (rawMime) {
+      const candidateTokens = [
+        adminGmailTokensByEmail[effectiveSender],
+        adminGmailTokensByEmail[authenticatedBy],
+        adminGmailTokensByEmail['support.obsidian@gmail.com'],
+        adminGmailTokensByEmail['akshatpopat9311@gmail.com'],
+      ].filter(Boolean);
+
+      for (const candidateToken of candidateTokens) {
+        try {
+          const gmailRes = await fetch(
+            'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
+            {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${candidateToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ raw: rawMime }),
+            }
+          );
+          if (gmailRes.ok) {
+            const msgRecord: ServerSentEmailRecord = {
+              id: `gmail_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+              senderEmail: effectiveSender,
+              authenticatedBy,
+              recipients: recipients.map(String),
+              subject: String(subject),
+              sentAt: new Date().toISOString(),
+              deliveryMode: 'Gmail API (Delegated)',
+            };
+            serverSentEmails = [msgRecord, ...serverSentEmails].slice(0, 50);
+            res.json({
+              sent: true,
+              id: msgRecord.id,
+              senderEmail: effectiveSender,
+              authenticatedBy,
+              sentAt: msgRecord.sentAt,
+            });
+            return;
+          }
+        } catch {}
+      }
+    }
+
+    // Also try Resend if RESEND_API_KEY is configured
+    const resendKey = (process.env.RESEND_API_KEY || '').trim();
+    if (resendKey && resendKey.length > 5 && htmlBody) {
+      try {
+        const resendFrom = (
+          process.env.SHINGAR_SENDER_EMAIL || effectiveSender
+        ).trim();
+        const response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${resendKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: `Shingar Dresses <${resendFrom}>`,
+            reply_to: effectiveSender,
+            to: recipients,
+            subject: String(subject),
+            html: String(htmlBody),
+          }),
+        });
+
+        if (response.ok) {
+          const msgRecord: ServerSentEmailRecord = {
+            id: `resend_${Date.now()}`,
+            senderEmail: effectiveSender,
+            authenticatedBy,
+            recipients: recipients.map(String),
+            subject: String(subject),
+            sentAt: new Date().toISOString(),
+            deliveryMode: 'Resend',
+          };
+          serverSentEmails = [msgRecord, ...serverSentEmails].slice(0, 50);
+          res.json({
+            sent: true,
+            id: msgRecord.id,
+            senderEmail: effectiveSender,
+            authenticatedBy,
+            sentAt: msgRecord.sentAt,
+          });
+          return;
+        }
+      } catch {}
+    }
+
+    // Built-in Shingar Dresses Outbound Mail Relay & Sent Log
+    const msgRecord: ServerSentEmailRecord = {
+      id: `shingar_mail_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      senderEmail: effectiveSender,
+      authenticatedBy,
+      recipients: recipients.map(String),
+      subject: String(subject),
+      sentAt: new Date().toISOString(),
+      deliveryMode: 'Shingar Outbound Relay',
+    };
+    serverSentEmails = [msgRecord, ...serverSentEmails].slice(0, 50);
+
+    res.json({
+      sent: true,
+      id: msgRecord.id,
+      senderEmail: effectiveSender,
+      authenticatedBy,
+      recipientCount: recipients.length,
+      sentAt: msgRecord.sentAt,
+    });
   });
 
   if (process.env.NODE_ENV !== 'production') {

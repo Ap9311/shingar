@@ -6,9 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  MapPin,
   Phone,
-  Clock,
   Send,
   CheckCircle2,
   ExternalLink,
@@ -27,7 +25,7 @@ export const ContactPage: React.FC = () => {
   const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState('');
   const [preferredDate, setPreferredDate] = useState(
-    SHINGAAR_BRANCHES[0]?.name || 'Shingar Dresses — M.G. Road Main Store'
+    SHINGAAR_BRANCHES[0]?.name || 'Shingar Dresses (M.G. Road Main Shop)'
   );
   const [dressReference, setDressReference] = useState('');
   const [message, setMessage] = useState('');
@@ -57,14 +55,14 @@ export const ContactPage: React.FC = () => {
         email,
         phone,
         preferredDate,
-        dressReference: dressReference || 'General Store Inquiry',
+        dressReference: dressReference || 'General Shop Question',
         message,
       });
       setSubmitted(true);
       setMessage('');
     } catch (err) {
       setErrorMsg(
-        err instanceof Error ? err.message : 'Unable to submit inquiry.'
+        err instanceof Error ? err.message : 'Could not send message.'
       );
     } finally {
       setSubmitting(false);
@@ -74,78 +72,68 @@ export const ContactPage: React.FC = () => {
   return (
     <main className="bg-white min-h-screen text-stone-900">
       {/* Header */}
-      <section className="bg-stone-50 border-b border-stone-200 py-12 sm:py-16">
+      <section className="bg-stone-50 border-b border-stone-200 py-10 sm:py-14">
         <div className="max-w-[1440px] mx-auto px-4 sm:px-8">
-          <div className="max-w-2xl space-y-3">
-            <div className="flex flex-wrap items-center gap-2 text-xs text-stone-500">
-              <span>Shingar Dresses &amp; Shingar NX</span>
-              <span aria-hidden="true">·</span>
-              <span>M.G. Road &amp; Motibaug Road, Junagadh (362001)</span>
-            </div>
-            <h1 className="font-serif text-4xl sm:text-5xl text-stone-950 tracking-tight">
-              Contact &amp; Store Hours
+          <div className="max-w-2xl space-y-2">
+            <p className="text-xs text-stone-500">
+              Shingar Dresses &amp; Shingar NX · Junagadh
+            </p>
+            <h1 className="font-serif text-3xl sm:text-5xl text-stone-950 tracking-tight">
+              Contact &amp; Shop Timings
             </h1>
             <p className="text-sm sm:text-base text-stone-600 leading-relaxed">
-              Connect with our Junagadh showrooms on WhatsApp, phone, or Instagram for
-              garment availability, school uniform inquiries, or in-store visits.
+              Call or WhatsApp us anytime for clothes, sizes, or school uniforms.
             </p>
           </div>
         </div>
       </section>
 
-      {/* Main Contact Details + Inquiry Form */}
-      <section className="max-w-[1440px] mx-auto px-4 sm:px-8 py-12 sm:py-16 border-b border-stone-200">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-          {/* Left: Verified Contact Numbers, Branches & Social Channels */}
-          <div className="lg:col-span-5 space-y-6">
-            {/* Direct Phone & WhatsApp Directory */}
-            <div className="border border-stone-200 p-6 sm:p-8 bg-stone-50 space-y-6">
+      {/* Contact Numbers + Simple Message Form */}
+      <section className="max-w-[1440px] mx-auto px-4 sm:px-8 py-10 sm:py-14">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-10">
+          {/* Left: Phone, WhatsApp & Instagram */}
+          <div className="lg:col-span-5">
+            <div className="border border-stone-200 p-5 sm:p-7 bg-stone-50 space-y-6">
               <div>
-                <p className="text-xs font-mono uppercase tracking-wider text-stone-600">
-                  Official Helpline &amp; WhatsApp
-                </p>
-                <h2 className="font-serif text-2xl text-stone-950 mt-1">
-                  Direct Store Numbers
+                <p className="text-xs text-stone-500">Call or Message Us</p>
+                <h2 className="font-serif text-2xl text-stone-950 mt-0.5">
+                  Phone &amp; WhatsApp Numbers
                 </h2>
               </div>
 
               <div className="space-y-3 text-sm">
-                {SHINGAR_CONTACT_DETAILS.whatsappNumbers.map((item) => {
-                  return (
-                    <div
-                      key={item.raw}
-                      className="flex items-center justify-between p-3 bg-white border border-stone-200"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <Phone className="w-4 h-4 text-stone-700 shrink-0" />
-                        <div>
-                          <p className="text-[11px] text-stone-500">
-                            {item.label}
-                          </p>
-                          <a
-                            href={`tel:+${item.raw}`}
-                            className="font-mono font-semibold text-stone-950 hover:text-stone-600"
-                          >
-                            {item.number}
-                          </a>
-                        </div>
+                {SHINGAR_CONTACT_DETAILS.whatsappNumbers.map((item) => (
+                  <div
+                    key={item.raw}
+                    className="flex items-center justify-between p-3 bg-white border border-stone-200"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Phone className="w-4 h-4 text-stone-700 shrink-0" />
+                      <div>
+                        <p className="text-[11px] text-stone-500">{item.label}</p>
+                        <a
+                          href={`tel:+${item.raw}`}
+                          className="font-mono font-semibold text-stone-950 hover:text-stone-600"
+                        >
+                          {item.number}
+                        </a>
                       </div>
-                      <a
-                        href={`https://wa.me/${item.raw}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-colors"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5" />
-                        <span>WhatsApp</span>
-                      </a>
                     </div>
-                  );
-                })}
+                    <a
+                      href={`https://wa.me/${item.raw}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-colors"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      <span>WhatsApp</span>
+                    </a>
+                  </div>
+                ))}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                   <div className="p-3 bg-white border border-stone-200">
-                    <p className="text-[11px] text-stone-500">Store Landline</p>
+                    <p className="text-[11px] text-stone-500">Shop Landline</p>
                     <a
                       href="tel:+912852651406"
                       className="font-mono text-xs font-semibold text-stone-900 mt-0.5 block"
@@ -168,10 +156,10 @@ export const ContactPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Instagram Channels */}
-              <div className="pt-4 border-t border-stone-200 space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">
-                  Official Instagram Pages
+              {/* Instagram Pages */}
+              <div className="pt-4 border-t border-stone-200 space-y-2.5">
+                <p className="text-xs font-medium text-stone-600">
+                  Our Instagram Pages
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {SHINGAR_CONTACT_DETAILS.instagramHandles.map((ig) => (
@@ -194,54 +182,18 @@ export const ContactPage: React.FC = () => {
                 </div>
               </div>
             </div>
-
-            {/* Both Junagadh Branches & Opening Hours */}
-            <div className="space-y-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-stone-500">
-                Showroom Locations &amp; Opening Hours
-              </h3>
-              <div className="space-y-3">
-                {SHINGAAR_BRANCHES.map((branch) => (
-                  <div
-                    key={branch.id}
-                    className="border border-stone-200 p-5 bg-white space-y-2.5 text-xs"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="font-serif text-lg text-stone-950">{branch.name}</p>
-                      <a
-                        href={branch.directionsUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-stone-900 font-medium inline-flex items-center gap-1 shrink-0 hover:underline"
-                      >
-                        <span>Directions</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                    <p className="text-stone-600 flex items-start gap-2 leading-relaxed">
-                      <MapPin className="w-3.5 h-3.5 text-stone-700 shrink-0 mt-0.5" />
-                      <span>{branch.address}</span>
-                    </p>
-                    <p className="text-stone-700 flex items-start gap-2 leading-relaxed">
-                      <Clock className="w-3.5 h-3.5 text-stone-400 shrink-0 mt-0.5" />
-                      <span>{branch.hours}</span>
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
 
-          {/* Right: Store Inquiry / Appointment Form */}
+          {/* Right: Simple Message Form */}
           <div className="lg:col-span-7">
-            <div className="border border-stone-200 p-6 sm:p-10 bg-white">
-              <div className="mb-6">
-                <h2 className="font-serif text-3xl text-stone-950">
-                  Send a Store Inquiry
+            <div className="border border-stone-200 p-5 sm:p-8 bg-white">
+              <div className="mb-5">
+                <h2 className="font-serif text-2xl sm:text-3xl text-stone-950">
+                  Send Us a Message
                 </h2>
                 <p className="text-sm text-stone-600 mt-1">
-                  Inquire about specific garments, bulk school uniforms, or plan a visit
-                  to our M.G. Road or Motibaug Road showrooms in Junagadh.
+                  Have a question about a cloth, size, or school uniform? Write to us
+                  below.
                 </p>
               </div>
 
@@ -249,45 +201,45 @@ export const ContactPage: React.FC = () => {
                 <div className="p-6 bg-stone-50 border border-stone-200 space-y-4">
                   <div className="flex items-center gap-2.5 text-emerald-800 font-medium text-sm">
                     <CheckCircle2 className="w-5 h-5" />
-                    <span>Your showroom inquiry has been registered.</span>
+                    <span>Message Sent!</span>
                   </div>
                   <p className="text-xs text-stone-600 leading-relaxed">
-                    Our team at <strong>{preferredDate}</strong> has received your
-                    details and will get in touch with you shortly.
+                    Thank you. Our shop team at <strong>{preferredDate}</strong> will
+                    call or message you soon.
                   </p>
                   <button
                     type="button"
                     onClick={() => setSubmitted(false)}
                     className="px-4 py-2 bg-stone-950 text-white text-xs font-medium cursor-pointer"
                   >
-                    Send Another Inquiry
+                    Send Another Message
                   </button>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleSubmit} className="space-y-4">
                   {errorMsg && (
-                    <div className="p-3.5 bg-stone-100 border border-stone-300 text-xs text-stone-900">
+                    <div className="p-3 bg-stone-100 border border-stone-300 text-xs text-stone-900">
                       {errorMsg}
                     </div>
                   )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-stone-700 mb-1.5">
-                        Full Name *
+                      <label className="block text-xs font-medium text-stone-700 mb-1">
+                        Your Name *
                       </label>
                       <input
                         type="text"
                         required
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        placeholder="Your full name"
+                        placeholder="Enter your name"
                         className="w-full px-3.5 py-2.5 border border-stone-300 text-sm focus:outline-none focus:border-stone-900"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-stone-700 mb-1.5">
-                        Email Address *
+                      <label className="block text-xs font-medium text-stone-700 mb-1">
+                        Your Email *
                       </label>
                       <input
                         type="email"
@@ -302,7 +254,7 @@ export const ContactPage: React.FC = () => {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-stone-700 mb-1.5">
+                      <label className="block text-xs font-medium text-stone-700 mb-1">
                         Phone / WhatsApp Number *
                       </label>
                       <input
@@ -315,8 +267,8 @@ export const ContactPage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-stone-700 mb-1.5">
-                        Preferred Junagadh Showroom
+                      <label className="block text-xs font-medium text-stone-700 mb-1">
+                        Which Shop Branch?
                       </label>
                       <select
                         value={preferredDate}
@@ -333,28 +285,28 @@ export const ContactPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-stone-700 mb-1.5">
-                      Garment or Offer Reference (Optional)
+                    <label className="block text-xs font-medium text-stone-700 mb-1">
+                      Cloth Name (Optional)
                     </label>
                     <input
                       type="text"
                       value={dressReference}
                       onChange={(e) => setDressReference(e.target.value)}
-                      placeholder="e.g. Royal Ivory Jacquard Kurta-Pyjama Set (SHG-MKP-101)"
+                      placeholder="e.g. Kurta-Pyjama, Jeans, School Uniform"
                       className="w-full px-3.5 py-2.5 border border-stone-300 text-sm focus:outline-none focus:border-stone-900"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-stone-700 mb-1.5">
-                      Message &amp; Visit Details *
+                    <label className="block text-xs font-medium text-stone-700 mb-1">
+                      Your Message *
                     </label>
                     <textarea
                       rows={4}
                       required
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Share your preferred visit time, size/availability question, or garment inquiry..."
+                      placeholder="Write what you are looking for..."
                       className="w-full px-3.5 py-2.5 border border-stone-300 text-sm focus:outline-none focus:border-stone-900"
                     />
                   </div>
@@ -365,9 +317,7 @@ export const ContactPage: React.FC = () => {
                     className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-stone-950 text-white text-xs font-medium hover:bg-stone-800 transition-colors cursor-pointer disabled:opacity-50"
                   >
                     <Send className="w-3.5 h-3.5" />
-                    <span>
-                      {submitting ? 'Submitting Inquiry...' : 'Submit Store Inquiry'}
-                    </span>
+                    <span>{submitting ? 'Sending...' : 'Send Message'}</span>
                   </button>
                 </form>
               )}
@@ -376,7 +326,7 @@ export const ContactPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Interactive Map Section */}
+      {/* Single Interactive Store Locator (No Duplicate Branch Cards) */}
       <BranchLocatorSection />
     </main>
   );
